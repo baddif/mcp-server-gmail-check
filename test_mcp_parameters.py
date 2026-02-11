@@ -87,6 +87,36 @@ def test_parameter_passing():
                 "days_back": 7,
                 "check_interval": 60
             }
+        },
+        {
+            "name": "Time Range Control",
+            "description": "Check emails with precise hour-level time control",
+            "params": {
+                "username": "your_email@gmail.com",
+                "app_password": "your_16_digit_app_password",
+                "email_filters": {
+                    "alerts@monitoring.com": ["error", "warning"],
+                    "reports@system.com": ["daily", "summary"]
+                },
+                "time_range_hours": 6,
+                "max_emails": 50,
+                "use_cache": True
+            }
+        },
+        {
+            "name": "Cache Bypass Audit",
+            "description": "Rescan all emails without using cache for auditing",
+            "params": {
+                "username": "your_email@gmail.com",
+                "app_password": "your_16_digit_app_password",
+                "email_filters": {
+                    "security@company.com": ["breach", "alert"],
+                    "compliance@org.com": ["audit", "review"]
+                },
+                "time_range_hours": 168,
+                "max_emails": 500,
+                "use_cache": False
+            }
         }
     ]
     
@@ -113,7 +143,8 @@ def test_parameter_passing():
                     "notifications@github.com": ["pull request"]
                 },
                 "max_emails": 10,
-                "days_back": 1
+                "time_range_hours": 12,
+                "use_cache": True
             }
         }
     }
@@ -140,7 +171,8 @@ async def check_gmail():
                 "important@company.com": ["urgent", "critical"]
             },
             "max_emails": 25,
-            "days_back": 2
+            "time_range_hours": 24,
+            "use_cache": True
         })
         
         return result

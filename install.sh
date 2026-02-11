@@ -12,6 +12,12 @@ echo "======================================"
 INSTALL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 echo "📁 Installation directory: $INSTALL_DIR"
 
+# Show version information
+if [ -f "$INSTALL_DIR/version.py" ]; then
+    echo "📋 Version Information:"
+    python3 "$INSTALL_DIR/version.py" --version 2>/dev/null || echo "Version: Latest"
+fi
+
 # Check Python version
 echo "🐍 Checking Python version..."
 python3 --version || {
@@ -45,6 +51,13 @@ sed "s|/path/to/mcp-server-gmail-check|$INSTALL_DIR|g" "$INSTALL_DIR/mcp_config.
 
 echo "✅ Installation completed successfully!"
 echo ""
+echo "📋 Installation Summary:"
+if [ -f "$INSTALL_DIR/version.py" ]; then
+    python3 "$INSTALL_DIR/version.py" --info 2>/dev/null || echo "Gmail Check MCP Server - Latest Version"
+else
+    echo "Gmail Check MCP Server - Latest Version"
+fi
+echo ""
 echo "📋 Next steps:"
 echo "1. Configure your Gmail credentials:"
 echo "   cp $INSTALL_DIR/gmail_config_example.json $INSTALL_DIR/gmail_config_local.json"
@@ -53,10 +66,13 @@ echo ""
 echo "2. Test the configuration:"
 echo "   cd $INSTALL_DIR && python3 test_gmail_skill.py"
 echo ""
-echo "3. MCP configuration saved to:"
+echo "3. Check version and updates:"
+echo "   python3 $INSTALL_DIR/version.py --check-updates"
+echo ""
+echo "4. MCP configuration saved to:"
 echo "   $MCP_CONFIG_DIR/gmail-check.json"
 echo ""
-echo "4. Add to your MCP client configuration or Claude Desktop:"
+echo "5. Add to your MCP client configuration or Claude Desktop:"
 echo "   Include the content of gmail-check.json in your MCP settings"
 echo ""
 echo "5. Start using the Gmail Check skill in your AI agent!"

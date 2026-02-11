@@ -23,6 +23,9 @@ A comprehensive skill for checking Gmail emails with advanced filtering, caching
 git clone https://github.com/baddif/mcp-server-gmail-check.git
 cd mcp-server-gmail-check
 bash install.sh
+
+# Check installation
+python3 version.py --info
 ```
 
 ### Option 2: Manual Installation
@@ -41,6 +44,114 @@ cp gmail_config_example.json gmail_config_local.json
 
 # 4. Test installation
 python3 test_gmail_skill.py
+
+# 5. Check version
+python3 version.py --version
+```
+
+## 🔄 Version Control & Updates
+
+### Check Current Version
+
+```bash
+# Show version information
+python3 version.py --info
+
+# Show version string only
+python3 version.py --version
+
+# Check for available updates
+python3 version.py --check-updates
+
+# Get version data as JSON
+python3 version.py --json
+```
+
+### Automatic Updates
+
+#### One-Click Update (Recommended)
+```bash
+# Automatic update with backup
+./update.sh
+
+# Check for updates without applying
+./update.sh --check
+
+# Show update help
+./update.sh --help
+```
+
+#### Manual Update Process
+```bash
+# 1. Backup your configuration
+cp gmail_config_local.json gmail_config_backup.json
+
+# 2. Check for uncommitted changes
+git status
+
+# 3. Pull latest changes
+git pull origin main
+
+# 4. Update dependencies
+pip3 install -r requirements.txt --upgrade
+
+# 5. Test installation
+python3 mcp_server.py --test
+
+# 6. Restore configuration if needed
+# (your gmail_config_local.json is preserved automatically)
+```
+
+### Version Information
+
+- **Current Version**: v1.1.0 (2026-02-12)
+- **MCP Compatibility**: 2024-11-05
+- **Python Requirement**: 3.7+
+- **Update Method**: Git-based with automatic dependency management
+
+### What's New in v1.1.0
+
+- ⏱️ **Enhanced Time Control**: `time_range_hours` parameter for precise timing (1-720 hours)
+- 💾 **Cache Management**: `use_cache` parameter for flexible cache control
+- 🔄 **Version Control**: Automatic update system with configuration backup
+- 📚 **Improved Documentation**: Comprehensive parameter guides and examples
+
+See [CHANGELOG.md](CHANGELOG.md) for complete version history.
+
+### Backup & Recovery
+
+The update script automatically backs up:
+- `gmail_config_local.json` - Your private Gmail credentials
+- `claude_desktop_config.json` - Claude Desktop configuration
+- Any custom configuration files
+
+Backups are stored in timestamped folders: `backup_YYYYMMDD_HHMMSS/`
+
+### Update Troubleshooting
+
+**Update Script Fails**
+```bash
+# Check Git repository status
+git status
+
+# Manual update
+git fetch origin main
+git pull origin main
+```
+
+**Dependencies Issues**
+```bash
+# Force reinstall dependencies
+pip3 install -r requirements.txt --force-reinstall
+
+# Check Python version
+python3 --version
+```
+
+**Configuration Lost**
+```bash
+# Restore from backup (replace with your backup folder)
+cp backup_20260212_143000/gmail_config_local.json .
 ```
 
 ## ⚙️ Configuration
@@ -325,17 +436,21 @@ mcp-server-gmail-check/
 │   └── ldr_compat.py             # Framework compatibility
 ├── 🧪 Testing & Validation
 │   ├── test_gmail_skill.py       # Comprehensive tests
+│   ├── test_mcp_parameters.py    # Parameter validation tests
 │   └── test_mcp_server.py        # MCP server tests
 ├── ⚙️ Configuration
 │   ├── gmail_config_example.json # Public template
 │   ├── gmail_config_local.json   # Private config (gitignored)
 │   └── claude_desktop_config.json # Claude Desktop setup
-├── 🚀 Deployment
+├── 🚀 Deployment & Updates
 │   ├── install.sh               # One-click installation
+│   ├── update.sh                # Automatic update script
+│   ├── version.py               # Version management system
 │   ├── requirements.txt         # Python dependencies
 │   └── .gitignore              # Security exclusions
 └── 📚 Documentation
     ├── README.md               # This file
+    ├── CHANGELOG.md            # Version history & updates
     ├── MCP_DEPLOYMENT.md       # MCP integration guide
     └── SKILL_GENERATION_RULES.md # Development standards
 ```
@@ -436,6 +551,22 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/baddif/mcp-server-gmail-check/issues)
 - 💡 **Feature Requests**: [GitHub Discussions](https://github.com/baddif/mcp-server-gmail-check/discussions)
 - 📖 **Documentation**: See `MCP_DEPLOYMENT.md` for advanced setup
+- 🔄 **Updates**: Use `./update.sh` for automatic updates or check `CHANGELOG.md`
+- 📊 **Version Info**: Run `python3 version.py --info` for current version details
+
+### Getting Help
+
+**Before reporting issues, please:**
+1. Check your version: `python3 version.py --version`
+2. Try updating: `./update.sh --check`
+3. Review [CHANGELOG.md](CHANGELOG.md) for known issues
+4. Test basic functionality: `python3 mcp_server.py --test`
+
+**Include in bug reports:**
+- Version information (`python3 version.py --json`)
+- Error messages and logs
+- Configuration (without credentials)
+- Steps to reproduce the issue
 
 ---
 

@@ -119,6 +119,8 @@ Gmail邮件检测和过滤工具
 - `background_mode` (optional): 后台模式, 默认false
 - `max_emails` (optional): 最大邮件数, 默认100
 - `days_back` (optional): 检查天数, 默认1
+- `time_range_hours` (optional): 时间范围(小时), 1-720小时, 默认24, 覆盖days_back
+- `use_cache` (optional): 是否使用缓存避免重复获取, 默认true
 
 **返回:** 匹配的邮件列表和统计信息
 
