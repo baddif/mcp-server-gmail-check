@@ -101,6 +101,18 @@ class GmailCheckSkill(McpCompatibleSkill):
                             "default": 1,
                             "minimum": 1,
                             "maximum": 30
+                        },
+                        "time_range_hours": {
+                            "type": "integer",
+                            "description": "Time range in hours to check for emails from current time. Default is 24 hours (last day). Overrides days_back if specified.",
+                            "default": 24,
+                            "minimum": 1,
+                            "maximum": 720
+                        },
+                        "use_cache": {
+                            "type": "boolean",
+                            "description": "Whether to use cache to avoid retrieving previously processed emails. If true, only new emails will be returned. If false, all matching emails in time range will be returned. Default is true.",
+                            "default": True
                         }
                     },
                     "required": ["username", "app_password", "email_filters"]
@@ -132,6 +144,8 @@ class GmailCheckSkill(McpCompatibleSkill):
             background_mode = kwargs.get("background_mode", False)
             max_emails = kwargs.get("max_emails", 100)
             days_back = kwargs.get("days_back", 1)
+            time_range_hours = kwargs.get("time_range_hours", 24)
+            use_cache = kwargs.get("use_cache", True)
             
             # Validate required parameters
             if not username or not app_password or not email_filters:
@@ -144,23 +158,25 @@ class GmailCheckSkill(McpCompatibleSkill):
                     }
                 }
             
-            # Load cache
-            processed_emails = self._load_cache()
+            # Load cache (always load for potential updating)
+            processed_emails = self._load_cache() if use_cache else {}
             
             if background_mode:
                 # Start background monitoring
                 result = self._start_background_monitoring(
                     ctx, username, app_password, email_filters, 
-                    check_interval, max_emails, days_back
+                    check_interval, max_emails, days_back,
+                    time_range_hours, use_cache
                 )
             else:
                 # Perform one-time check
                 matched_emails = self._check_emails(
                     username, app_password, email_filters, 
-                    processed_emails, max_emails, days_back
+                    processed_emails, max_emails, days_back,
+                    time_range_hours, use_cache
                 )
                 
-                # Save updated cache
+                # Save updated cache (always save after processing, regardless of use_cache setting)
                 self._save_cache(processed_emails)
                 
                 result = {
@@ -175,7 +191,10 @@ class GmailCheckSkill(McpCompatibleSkill):
                     "statistics": {
                         "emails_checked": len(matched_emails),
                         "cache_size": len(processed_emails),
-                        "filters_applied": len(email_filters)
+                        "filters_applied": len(email_filters),
+                        "time_range_hours": time_range_hours,
+                        "cache_enabled": use_cache,
+                        "search_period": f"{time_range_hours} hours" if time_range_hours is not None else f"{days_back} days"
                     }
                 }
             
@@ -196,7 +215,8 @@ class GmailCheckSkill(McpCompatibleSkill):
             }
     
     def _check_emails(self, username: str, app_password: str, email_filters: Dict[str, List[str]], 
-                     processed_emails: Dict[str, str], max_emails: int, days_back: int) -> List[Dict[str, Any]]:
+                     processed_emails: Dict[str, str], max_emails: int, days_back: int, 
+                     time_range_hours: int = None, use_cache: bool = True) -> List[Dict[str, Any]]:
         """Check emails and return matched content"""
         matched_emails = []
         
@@ -206,8 +226,17 @@ class GmailCheckSkill(McpCompatibleSkill):
             mail.login(username, app_password)
             mail.select('inbox')
             
-            # Calculate date range
-            since_date = (datetime.now() - timedelta(days=days_back)).strftime("%d-%b-%Y")
+            # Calculate date range - use time_range_hours if provided, otherwise use days_back
+            if time_range_hours is not None:
+                since_datetime = datetime.now() - timedelta(hours=time_range_hours)
+                since_date = since_datetime.strftime("%d-%b-%Y")
+                print(f"📅 Using time range: {time_range_hours} hours ({since_datetime.strftime('%Y-%m-%d %H:%M:%S')})")
+            else:
+                since_datetime = datetime.now() - timedelta(days=days_back)
+                since_date = since_datetime.strftime("%d-%b-%Y")
+                print(f"📅 Using days back: {days_back} days ({since_datetime.strftime('%Y-%m-%d')})")
+            
+            print(f"💾 Cache usage: {'Enabled' if use_cache else 'Disabled'} - {len(processed_emails)} emails in cache")
             
             # Search for emails within date range
             search_criteria = f'(SINCE {since_date})'
@@ -250,10 +279,14 @@ class GmailCheckSkill(McpCompatibleSkill):
                     # Create unique email identifier
                     email_id = hashlib.md5(f"{message_id}{date_received}".encode()).hexdigest()
                     
-                    # Skip if already processed
-                    if email_id in processed_emails:
-                        print(f"  跳过: 已处理过的邮件")
+                    # Skip if already processed (only when cache is enabled)
+                    if use_cache and email_id in processed_emails:
+                        print(f"  ⏩ 跳过: 已处理过的邮件 (缓存)")
                         continue
+                    elif not use_cache:
+                        print(f"  🔄 处理: 忽略缓存状态")
+                    else:
+                        print(f"  🆕 新邮件: 未在缓存中找到")
                     
                     # Check if email matches filters
                     match_found = False
@@ -420,17 +453,19 @@ class GmailCheckSkill(McpCompatibleSkill):
     
     def _start_background_monitoring(self, ctx: ExecutionContext, username: str, app_password: str, 
                                    email_filters: Dict[str, List[str]], check_interval: int,
-                                   max_emails: int, days_back: int) -> Dict[str, Any]:
+                                   max_emails: int, days_back: int, time_range_hours: int = None,
+                                   use_cache: bool = True) -> Dict[str, Any]:
         """Start background email monitoring"""
         
         def monitoring_loop():
-            processed_emails = self._load_cache()
+            processed_emails = self._load_cache() if use_cache else {}
             
             while not self._stop_monitoring.is_set():
                 try:
                     matched_emails = self._check_emails(
                         username, app_password, email_filters, 
-                        processed_emails, max_emails, days_back
+                        processed_emails, max_emails, days_back,
+                        time_range_hours, use_cache
                     )
                     
                     if matched_emails:

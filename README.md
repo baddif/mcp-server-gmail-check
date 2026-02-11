@@ -159,6 +159,8 @@ The Gmail Check MCP Server **完全支持参数传递**！以下是所有可用�
 | `background_mode` | boolean | ❌ No | false | Continuous monitoring mode |
 | `max_emails` | integer | ❌ No | 100 | Max emails per check (1-1000) |
 | `days_back` | integer | ❌ No | 1 | Days to look back (1-30) |
+| `time_range_hours` | integer | ❌ No | 24 | Time range in hours from current time (1-720, overrides days_back) |
+| `use_cache` | boolean | ❌ No | true | Whether to use cache to avoid re-processing emails |
 
 ### 🎯 Parameter Usage Examples
 
@@ -205,6 +207,35 @@ The Gmail Check MCP Server **完全支持参数传递**！以下是所有可用�
   "max_emails": 200,
   "days_back": 7,
   "check_interval": 60
+}
+```
+
+#### Precise Time Range Check
+```json
+{
+  "username": "monitor@company.com",
+  "app_password": "precise_monitoring_pwd",
+  "email_filters": {
+    "alerts@system.com": ["critical", "error"]
+  },
+  "time_range_hours": 6,
+  "use_cache": false,
+  "max_emails": 50
+}
+```
+
+#### Cache-Disabled Full Scan
+```json
+{
+  "username": "audit@company.com", 
+  "app_password": "audit_app_password",
+  "email_filters": {
+    "compliance@bank.com": ["violation", "audit"],
+    "security@company.com": ["breach", "incident"]
+  },
+  "time_range_hours": 72,
+  "use_cache": false,
+  "max_emails": 500
 }
 ```
 
