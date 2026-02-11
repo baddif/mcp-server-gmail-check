@@ -146,40 +146,142 @@ async def use_gmail_skill():
 
 ## 🔧 Function Parameters
 
-The `gmail_check` function supports these parameters:
+The Gmail Check MCP Server **完全支持参数传递**！以下是所有可用参数：
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `sender_filter` | string | `""` | Filter emails by sender email address |
-| `subject_filter` | string | `""` | Filter by subject (partial match, case-insensitive) |
-| `days_back` | integer | 1 | Number of days to look back (1-30) |
-| `max_emails` | integer | 20 | Maximum emails to retrieve (1-100) |
-| `download_content` | boolean | `true` | Whether to download email body content |
-| `only_unread` | boolean | `false` | Only return unread emails |
+### 📋 Complete Parameter List
 
-### Example Filters
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `username` | string | ✅ YES | - | Gmail username (email address) |
+| `app_password` | string | ✅ YES | - | Gmail 16-digit app password |
+| `email_filters` | object | ✅ YES | - | Email filters: `{"sender": ["subject1", "subject2"]}` |
+| `check_interval` | integer | ❌ No | 30 | Check interval in minutes (1-1440) |
+| `background_mode` | boolean | ❌ No | false | Continuous monitoring mode |
+| `max_emails` | integer | ❌ No | 100 | Max emails per check (1-1000) |
+| `days_back` | integer | ❌ No | 1 | Days to look back (1-30) |
 
+### 🎯 Parameter Usage Examples
+
+#### Basic Email Check
+```json
+{
+  "username": "your_email@gmail.com",
+  "app_password": "your_16_digit_app_password",
+  "email_filters": {
+    "notifications@github.com": ["pull request", "issue"],
+    "billing@aws.amazon.com": ["invoice", "bill"]
+  },
+  "max_emails": 20,
+  "days_back": 3
+}
+```
+
+#### Background Monitoring
+```json
+{
+  "username": "monitor@gmail.com", 
+  "app_password": "monitoring_password",
+  "email_filters": {
+    "alerts@company.com": ["urgent", "critical", "error"],
+    "support@service.com": ["ticket", "request"]
+  },
+  "background_mode": true,
+  "check_interval": 15,
+  "max_emails": 50,
+  "days_back": 1
+}
+```
+
+#### Comprehensive Scan
+```json
+{
+  "username": "admin@domain.com",
+  "app_password": "admin_app_password", 
+  "email_filters": {
+    "security@bank.com": ["alert", "fraud"],
+    "notifications@system.com": ["down", "maintenance"],
+    "reports@analytics.com": ["weekly", "monthly"]
+  },
+  "max_emails": 200,
+  "days_back": 7,
+  "check_interval": 60
+}
+```
+
+### 🤖 MCP Client Integration with Parameters
+
+#### Direct JSON-RPC Call
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "gmail_check",
+    "arguments": {
+      "username": "user@gmail.com",
+      "app_password": "your_app_password",
+      "email_filters": {
+        "important@company.com": ["urgent", "action required"]
+      },
+      "max_emails": 25,
+      "days_back": 2
+    }
+  }
+}
+```
+
+#### Python MCP Client
 ```python
-# Get unread emails from GitHub
-skill.execute(ctx,
-    sender_filter="notifications@github.com",
-    only_unread=True,
-    days_back=3
-)
+async def check_emails_with_params():
+    server_params = StdioServerParameters(
+        command="python3",
+        args=["/path/to/mcp_server.py"]
+    )
+    
+    async with ClientSession(server_params) as session:
+        await session.initialize()
+        
+        # Call with custom parameters
+        result = await session.call_tool("gmail_check", {
+            "username": "your_email@gmail.com",
+            "app_password": "your_app_password",
+            "email_filters": {
+                "github@notifications.com": ["mentioned", "review"],
+                "alerts@system.com": ["critical", "down"]
+            },
+            "max_emails": 30,
+            "days_back": 3,
+            "background_mode": False
+        })
+        
+        return result
+```
 
-# Search for specific subject
-skill.execute(ctx,
-    subject_filter="invoice",
-    days_back=30,
-    download_content=True
-)
+#### Claude Desktop with Parameters
+When using Claude Desktop, you can specify parameters in your conversation:
 
-# Get recent important emails
-skill.execute(ctx,
-    sender_filter="boss@company.com",
-    days_back=7,
-    max_emails=50
-)
+```
+"Check my Gmail for:
+- GitHub notifications about pull requests from last 2 days  
+- System alerts containing 'critical' or 'error' from last week
+- Maximum 50 emails
+- Username: developer@company.com
+- Use background mode for continuous monitoring"
+```
+
+### ⚡ Quick Test Commands
+
+```bash
+# Test parameter validation
+python3 test_mcp_parameters.py
+
+# Simulate MCP client with parameters  
+python3 demo_mcp_client.py
+
+# Test real MCP server
+echo '{"method":"tools/call","params":{"name":"gmail_check","arguments":{"username":"test@gmail.com","app_password":"test123","email_filters":{"test@example.com":["test"]}}}}' | python3 mcp_server.py
+```
 ```
 
 ## 🏗️ Project Structure
