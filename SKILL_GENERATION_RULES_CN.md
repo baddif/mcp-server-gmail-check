@@ -1,20 +1,22 @@
-# Skill生成规则 - LocalDailyReport
+# 技能生成规则 - AI应用开发标准
 
-**版本**: 1.0.0  
+**版本**: 2.0.0  
 **最后更新**: 2026-02-11  
-**目的**: AI可读的Skill生成规范，用于在LocalDailyReport框架中创建新技能
+**目的**: AI可读的技能生成规范，用于创建支持多种AI Agent框架的智能技能
 
 ---
 
 ## 概述
 
-本文档定义了在LocalDailyReport框架中创建技能的完整标准和要求。所有技能必须同时支持 **OpenAI Function Calling** 和 **MCP (Model Context Protocol)** 标准，以实现最大兼容性。
+本文档定义了创建智能技能的完整标准和要求。所有技能必须同时支持 **OpenAI Function Calling** 和 **MCP (Model Context Protocol)** 标准，以实现与各种AI Agent和框架的最大兼容性。
 
 ### 双标准支持
 
-LocalDailyReport中的所有技能都实现：
+智能技能实现：
 1. **OpenAI Function Calling** - 基于JSON Schema的函数定义
 2. **MCP (Model Context Protocol)** - 工具、资源和提示接口
+3. **独立运行** - 不依赖特定框架的自包含功能
+4. **框架集成** - 可选的现有项目框架集成
 
 ---
 
@@ -22,17 +24,29 @@ LocalDailyReport中的所有技能都实现：
 
 ### 1.1 基本协议
 
-每个技能必须实现 `Skill` 协议：
+每个技能可以实现以下接口之一：
 
+#### 独立技能接口
+```python
+class Skill:
+    """独立技能基类 - 用于自包含的技能实现"""
+    
+    def execute(self, **kwargs) -> Any:
+        """执行技能功能"""
+        pass
+```
+
+#### 框架集成接口
 ```python
 from typing import Protocol, Any
-from ..context import ExecutionContext
+from .context import ExecutionContext
 
-class Skill(Protocol):
-    """技能接口。每个技能必须实现 execute(ctx, **kwargs) -> Any"""
+class FrameworkSkill(Protocol):
+    """框架集成技能接口 - 用于现有项目框架集成"""
     
     def execute(self, ctx: ExecutionContext, **kwargs) -> Any:
-        ...
+        """在框架上下文中执行技能"""
+        pass
 ```
 
 ### 1.2 MCP兼容技能（推荐）
@@ -40,7 +54,7 @@ class Skill(Protocol):
 为了完整的MCP支持，扩展 `McpCompatibleSkill`：
 
 ```python
-from ldr.mcp.base import McpCompatibleSkill
+from mcp_base import McpCompatibleSkill
 from typing import Dict, Any
 
 class YourSkill(McpCompatibleSkill):
@@ -596,14 +610,179 @@ def get_template(self, language: str, custom_template: str = None) -> str:
 
 ---
 
-## 8. 文件结构和命名
+## 8. MCP服务器部署标准
 
-### 8.1 技能文件组织
+### 8.1 MCP兼容技能必需文件
+
+每个MCP兼容技能项目必须包含：
+
+#### 核心实现文件
+- `{skill_name}_skill.py` - 主要技能实现
+- `mcp_server.py` - MCP服务器，使用stdio传输
+- `skill_compat.py` - 框架兼容层
+
+#### 配置文件
+- `mcp_config.json` - MCP客户端配置模板
+- `{skill_name}_config_example.json` - 配置示例
+- `claude_desktop_config.json` - Claude Desktop集成配置
+
+#### 部署文件
+- `install.sh` - 自动化安装脚本
+- `requirements.txt` - Python依赖
+- `.gitignore` - 安全和缓存排除
+
+#### 文档文件
+- `MCP_DEPLOYMENT.md` - 部署和集成指南
+- `README.md` - 项目概述和使用说明
+- `{SKILL_NAME}_USAGE.md` - 详细技能文档
+
+### 8.2 MCP服务器模板
+
+```python
+#!/usr/bin/env python3
+"""
+{技能名称} MCP服务器
+
+使用: python mcp_server.py
+测试: python mcp_server.py --test
+"""
+
+import json
+import sys
+import asyncio
+from typing import Any, Dict, List
+
+# 导入技能（带降级处理）
+try:
+    from {skill_name}_skill import {SkillName}Skill
+    from skill_compat import ExecutionContext
+except ImportError as e:
+    print(f"导入失败: {e}")
+    sys.exit(1)
+
+class {SkillName}McpServer:
+    """MCP服务器 for {技能名称}"""
+    
+    def __init__(self):
+        self.skill = {SkillName}Skill()
+        self.context = ExecutionContext()
+    
+    def get_server_info(self) -> Dict[str, Any]:
+        return {
+            "name": "{skill-name}-mcp-server",
+            "version": "1.0.0", 
+            "description": "{技能描述} 的 MCP 服务器",
+            "capabilities": {
+                "tools": True,
+                "resources": True,
+                "prompts": False
+            }
+        }
+    
+    def list_tools(self) -> List[Dict[str, Any]]:
+        schema = self.skill.get_openai_schema()
+        return [{
+            "name": schema["function"]["name"],
+            "description": schema["function"]["description"],
+            "inputSchema": schema["function"]["parameters"]
+        }]
+    
+    def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        if name != "{skill_function_name}":
+            return {"error": f"未知工具: {name}"}
+        
+        try:
+            result = self.skill.execute(self.context, **arguments)
+            if result.get("success"):
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": json.dumps(result, ensure_ascii=False, indent=2)
+                    }]
+                }
+            else:
+                return {
+                    "error": result.get("error", {}).get("message", "未知错误")
+                }
+        except Exception as e:
+            return {"error": f"工具执行失败: {str(e)}"}
+```
+
+### 8.3 安装脚本模板
+
+```bash
+#!/bin/bash
+# {技能名称} MCP服务器安装脚本
+
+echo "🚀 {技能名称} MCP服务器安装"
+echo "=============================="
+
+INSTALL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+echo "📁 安装目录: $INSTALL_DIR"
+
+# 检查Python
+python3 --version || {
+    echo "❌ 需要Python 3"
+    exit 1
+}
+
+# 安装依赖
+if [ -f "$INSTALL_DIR/requirements.txt" ]; then
+    pip3 install -r "$INSTALL_DIR/requirements.txt"
+fi
+
+# 测试服务器
+echo "🧪 测试MCP服务器..."
+cd "$INSTALL_DIR"
+python3 mcp_server.py --test || {
+    echo "❌ 服务器测试失败"
+    exit 1
+}
+
+echo "✅ 安装完成！"
+echo "📋 下一步:"
+echo "1. 配置凭据: cp {skill_name}_config_example.json {skill_name}_config_local.json"
+echo "2. 测试配置: python3 test_{skill_name}.py"
+echo "3. 添加到AI代理的MCP设置"
+```
+
+---
+
+## 9. 文件结构和命名
+
+### 9.1 标准项目结构
+```
+{skill-name}/
+├── 核心实现
+│   ├── {skill_name}_skill.py          # 主要技能实现
+│   ├── mcp_server.py                  # MCP协议服务器
+│   └── skill_compat.py                # 框架兼容层
+├── 测试和验证
+│   ├── test_{skill_name}.py           # 测试脚本
+│   └── test_mcp_server.py             # MCP服务器测试
+├── 配置
+│   ├── {skill_name}_config_example.json # 公开配置模板
+│   ├── {skill_name}_config_local.json   # 私有配置（gitignored）
+│   ├── mcp_config.json                  # MCP客户端配置
+│   └── claude_desktop_config.json      # Claude Desktop集成
+├── 部署
+│   ├── install.sh                      # 安装脚本
+│   ├── requirements.txt                # Python依赖
+│   └── .gitignore                      # 安全排除规则
+└── 文档
+    ├── README.md                       # 项目概述
+    ├── MCP_DEPLOYMENT.md               # MCP集成指南
+    └── {SKILL_NAME}_USAGE.md           # 详细使用指南
+```
+
+### 9.2 框架无关组织
+
+对于可能集成到现有框架（如LocalDailyReport）的技能，也支持：
 
 ```
-ldr/skills/
+framework/skills/
 ├── __init__.py
-├── base.py                    # 基本Skill协议
+├── base.py                    # 基本技能协议
 ├── registry.py                # 技能注册表
 ├── specs/                     # 规范
 │   └── skill_template.yaml    # 新技能模板
@@ -1024,45 +1203,40 @@ def get_mcp_prompts(self):
 
 ### 15.1 Schema导出
 
-所有技能自动导出到 `mcp_schema_export.json`：
+所有技能可以导出到 `mcp_schema_export.json`：
 
 ```python
-# 生成schema导出
-python -c "from ldr.mcp import LocalDailyReportMcpServer; server = LocalDailyReportMcpServer(); server.export_schema('mcp_schema_export.json')"
+# 从单个技能生成schema导出
+python -c "from {skill_name}_skill import {SkillName}Skill; skill = {SkillName}Skill(); import json; print(json.dumps(skill.get_openai_schema(), indent=2))"
 ```
 
 ### 15.2 MCP服务器集成
 
-技能通过MCP服务器自动可用：
+技能通过专用MCP服务器可用：
 
 ```bash
-# 启动MCP服务器
-python start_mcp_server.py --host 127.0.0.1 --port 8001
+# 启动单个技能MCP服务器
+python mcp_server.py
 
-# 通过HTTP访问
-curl http://localhost:8001/mcp/tools
-curl http://localhost:8001/mcp/resources
-curl http://localhost:8001/mcp/prompts
+# 测试MCP服务器功能
+python mcp_server.py --test
 ```
 
 ### 15.3 MCP客户端集成
 
 ```python
-from ldr.mcp import LocalDailyReportMcpServer
+from {skill_name}_skill import {SkillName}McpServer
 
-server = LocalDailyReportMcpServer()
+server = {SkillName}McpServer()
 
 # 列出所有工具
 tools = server.list_tools()
 
 # 调用工具
-result = server.call_tool("git_reader", {"include_uncommitted": True})
+result = server.call_tool("{skill_function_name}", {"param1": "value1"})
 
 # 读取资源
-data = server.read_resource("git://repository/status")
-
-# 获取提示
-prompt = server.get_prompt("git_summary_chinese", {})
+data = server.read_resource("skill://resource/data")
 ```
 
 ---
@@ -1158,27 +1332,26 @@ JSON Schema类型和约束的快速参考：
 - JSON Schema: https://json-schema.org/
 - Model Context Protocol: https://modelcontextprotocol.io/
 
-### LocalDailyReport文档
+### AI智能应用文档
 - 主README: `/README.md`
-- MCP集成指南: `/docs/mcp-integration.md`
-- AI代理集成: `/docs/ai-agent-integration.md`
-- 语言支持: `/docs/language-support.md`
+- MCP集成指南: `/MCP_DEPLOYMENT.md`
+- 安装指南: `/install.sh`
+- 使用文档: `/{SKILL_NAME}_USAGE.md`
 
 ### 示例实现
-- GitReaderSkill: `/ldr/skills/git_reader_skill.py`
-- GitSummarySkill: `/ldr/skills/git_summary_skill.py`
-- DailyReportSkill: `/ldr/skills/daily_report_skill.py`
-- FileSkill: `/ldr/skills/file_skill.py`
-- DirectorySkill: `/ldr/skills/dir_skill.py`
+- Gmail检查技能: `/gmail_check_skill.py`
+- MCP服务器模板: `/mcp_server.py`
+- 配置管理: `/skill_compat.py`
+- 测试框架: `/test_gmail_skill.py`
 
 ---
 
 ## 文档结束
 
-本文档旨在供AI系统阅读和理解，用于自动化技能生成。提供了所有标准、约定和示例，以确保一致、高质量的技能开发。
+本文档旨在供AI系统阅读和理解，用于自动化技能生成。提供了所有标准、约定和示例，以确保一致、高质量的技能开发，支持多种AI代理平台。
 
-有关问题或说明，请参考示例实现或MCP集成文档。
+有关问题或说明，请参考示例实现或MCP部署文档。
 
 **最后更新**: 2026-02-11  
-**文档版本**: 1.0.0  
-**框架版本**: LocalDailyReport 1.0.0
+**文档版本**: 2.0.0  
+**目标应用**: AI智能技能和代理

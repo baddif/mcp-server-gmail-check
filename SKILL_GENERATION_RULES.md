@@ -1,20 +1,21 @@
-# Skill Generation Rules for LocalDailyReport
+# Skill Generation Rules for AI-Powered Applications
 
-**Version**: 1.0.0  
+**Version**: 2.0.0  
 **Last Updated**: 2026-02-11  
-**Purpose**: AI-readable specification for generating new skills compatible with LocalDailyReport framework
+**Purpose**: AI-readable specification for generating new skills compatible with modern AI frameworks
 
 ---
 
 ## Overview
 
-This document defines the complete standards and requirements for creating skills in the LocalDailyReport framework. Skills must support both **OpenAI Function Calling** and **MCP (Model Context Protocol)** standards for maximum compatibility.
+This document defines the complete standards and requirements for creating skills in AI-powered applications. Skills must support both **OpenAI Function Calling** and **MCP (Model Context Protocol)** standards for maximum compatibility across different AI agents and platforms.
 
 ### Dual Standard Support
 
-All skills in LocalDailyReport implement:
+All modern skills should implement:
 1. **OpenAI Function Calling** - JSON Schema based function definitions
 2. **MCP (Model Context Protocol)** - Tools, Resources, and Prompts interfaces
+3. **Standalone Operation** - Independent execution without framework dependencies
 
 ---
 
@@ -40,14 +41,102 @@ class Skill(Protocol):
 For full MCP support, extend `McpCompatibleSkill`:
 
 ```python
-from ldr.mcp.base import McpCompatibleSkill
-from typing import Dict, Any
+# Framework compatibility layer
+try:
+    from framework.mcp.base import McpCompatibleSkill
+    from framework.context import ExecutionContext
+except ImportError:
+    # Fallback to standalone implementation
+    from skill_compat import McpCompatibleSkill, ExecutionContext
 
 class YourSkill(McpCompatibleSkill):
     
     @abstractmethod
     def get_openai_schema(self) -> Dict[str, Any]:
         """Return OpenAI Function Calling compatible JSON Schema"""
+        pass
+    
+    @abstractmethod
+    def execute(self, ctx, **kwargs) -> Any:
+        """Execute the skill with given parameters"""
+        pass
+    
+    # Optional: Override for MCP Resources
+    def get_mcp_resources(self) -> List[McpResource]:
+        return []
+    
+    # Optional: Override for MCP Prompts
+    def get_mcp_prompts(self) -> List[McpPrompt]:
+        return []
+
+### 1.3 Standalone MCP Server Implementation
+
+Every skill should include a standalone MCP server for AI agent integration:
+
+```python
+#!/usr/bin/env python3
+"""
+MCP Server for [Skill Name]
+
+Provides Model Context Protocol (MCP) server implementation
+for AI agent integration.
+"""
+
+import json
+import sys
+import asyncio
+from typing import Any, Dict, List
+
+class SkillMcpServer:
+    """MCP Server implementation"""
+    
+    def __init__(self):
+        self.skill = YourSkill()
+        self.context = ExecutionContext()
+    
+    def get_server_info(self) -> Dict[str, Any]:
+        return {
+            "name": "skill-mcp-server",
+            "version": "1.0.0", 
+            "description": "MCP server for [skill description]",
+            "capabilities": {
+                "tools": True,
+                "resources": True,
+                "prompts": False
+            }
+        }
+    
+    def list_tools(self) -> List[Dict[str, Any]]:
+        schema = self.skill.get_openai_schema()
+        return [{
+            "name": schema["function"]["name"],
+            "description": schema["function"]["description"],
+            "inputSchema": schema["function"]["parameters"]
+        }]
+    
+    def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        result = self.skill.execute(self.context, **arguments)
+        if result.get("success"):
+            return {
+                "content": [{
+                    "type": "text", 
+                    "text": json.dumps(result, ensure_ascii=False, indent=2)
+                }]
+            }
+        else:
+            return {
+                "error": result.get("error", {}).get("message", "Unknown error")
+            }
+
+# Standard MCP server entry point
+async def main():
+    server = SkillMcpServer()
+    # Implement stdio transport for MCP communication
+    # See full implementation in project examples
+    
+if __name__ == "__main__":
+    asyncio.run(main())
+```
         pass
     
     @abstractmethod
@@ -745,12 +834,326 @@ def test_mcp_compatibility():
 
 ---
 
-## 11. File Structure and Naming
+## 11. MCP Server Deployment Standards
 
-### 11.1 Skill File Organization
+### 11.1 Required Files for MCP Skills
+
+Every MCP-compatible skill project MUST include:
+
+#### Core Implementation Files
+- `{skill_name}_skill.py` - Main skill implementation
+- `mcp_server.py` - MCP server with stdio transport
+- `skill_compat.py` - Framework compatibility layer
+
+#### Configuration Files  
+- `mcp_config.json` - MCP client configuration template
+- `{skill_name}_config_example.json` - Configuration example
+- `claude_desktop_config.json` - Claude Desktop integration
+
+#### Deployment Files
+- `install.sh` - Automated installation script
+- `requirements.txt` - Python dependencies
+- `.gitignore` - Security and cache exclusions
+
+#### Documentation Files
+- `MCP_DEPLOYMENT.md` - Deployment and integration guide
+- `README.md` - Project overview and usage
+- `{SKILL_NAME}_USAGE.md` - Detailed skill documentation
+
+### 11.2 MCP Server Template
+
+```python
+#!/usr/bin/env python3
+"""
+MCP Server for {Skill Name}
+
+Usage: python mcp_server.py
+Test: python mcp_server.py --test
+"""
+
+import json
+import sys
+import asyncio
+import logging
+from typing import Any, Dict, List
+
+# Import skill with fallback
+try:
+    from {skill_name}_skill import {SkillName}Skill
+    from skill_compat import ExecutionContext
+except ImportError as e:
+    logging.error(f"Failed to import: {e}")
+    sys.exit(1)
+
+class {SkillName}McpServer:
+    """MCP Server for {Skill Name}"""
+    
+    def __init__(self):
+        self.skill = {SkillName}Skill()
+        self.context = ExecutionContext()
+    
+    def get_server_info(self) -> Dict[str, Any]:
+        return {
+            "name": "{skill-name}-mcp-server",
+            "version": "1.0.0",
+            "description": "MCP server for {skill description}",
+            "capabilities": {
+                "tools": True,
+                "resources": True,
+                "prompts": False
+            }
+        }
+    
+    def list_tools(self) -> List[Dict[str, Any]]:
+        schema = self.skill.get_openai_schema()
+        return [{
+            "name": schema["function"]["name"],
+            "description": schema["function"]["description"], 
+            "inputSchema": schema["function"]["parameters"]
+        }]
+    
+    def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        if name != "{skill_function_name}":
+            return {"error": f"Unknown tool: {name}"}
+        
+        try:
+            result = self.skill.execute(self.context, **arguments)
+            if result.get("success"):
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": json.dumps(result, ensure_ascii=False, indent=2)
+                    }]
+                }
+            else:
+                return {
+                    "error": result.get("error", {}).get("message", "Unknown error")
+                }
+        except Exception as e:
+            return {"error": f"Tool execution failed: {str(e)}"}
+    
+    def list_resources(self) -> List[Dict[str, Any]]:
+        resources = self.skill.get_mcp_resources()
+        return [{
+            "uri": resource.uri,
+            "name": resource.name, 
+            "description": resource.description,
+            "mimeType": resource.mime_type
+        } for resource in resources]
+    
+    def read_resource(self, uri: str) -> Dict[str, Any]:
+        try:
+            return self.skill.read_resource(uri)
+        except Exception as e:
+            return {"error": f"Failed to read resource: {str(e)}"}
+
+class StdioTransport:
+    """Standard I/O transport for MCP"""
+    
+    def __init__(self, server):
+        self.server = server
+    
+    async def run(self):
+        """Run stdio transport loop"""
+        while True:
+            try:
+                line = await asyncio.get_event_loop().run_in_executor(
+                    None, sys.stdin.readline
+                )
+                if not line:
+                    break
+                
+                request = json.loads(line.strip())
+                response = self.handle_request(request)
+                
+                if "id" in request:
+                    response["id"] = request["id"]
+                
+                print(json.dumps(response, ensure_ascii=False), flush=True)
+                
+            except json.JSONDecodeError as e:
+                error_response = {"error": f"Invalid JSON: {str(e)}", "code": -32700}
+                print(json.dumps(error_response), flush=True)
+            except KeyboardInterrupt:
+                break
+    
+    def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle MCP request"""
+        method = request.get("method", "")
+        params = request.get("params", {})
+        
+        if method == "initialize":
+            return {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}, "resources": {}},
+                "serverInfo": self.server.get_server_info()
+            }
+        elif method == "tools/list":
+            return {"tools": self.server.list_tools()}
+        elif method == "tools/call":
+            return self.server.call_tool(
+                params.get("name", ""), 
+                params.get("arguments", {})
+            )
+        elif method == "resources/list":
+            return {"resources": self.server.list_resources()}
+        elif method == "resources/read":
+            return self.server.read_resource(params.get("uri", ""))
+        else:
+            return {"error": f"Unknown method: {method}", "code": -32601}
+
+def test_server():
+    """Test MCP server functionality"""
+    print("Testing {Skill Name} MCP Server...")
+    server = {SkillName}McpServer()
+    
+    print("\n1. Server Info:")
+    print(json.dumps(server.get_server_info(), indent=2))
+    
+    print("\n2. Available Tools:")
+    print(json.dumps(server.list_tools(), indent=2))
+    
+    print("\n3. Available Resources:")
+    print(json.dumps(server.list_resources(), indent=2))
+    
+    print("\n✅ MCP Server test completed!")
+
+async def main():
+    """Main entry point"""
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        test_server()
+        return
+    
+    server = {SkillName}McpServer()
+    transport = StdioTransport(server)
+    await transport.run()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### 11.3 Installation Script Template
+
+```bash
+#!/bin/bash
+# {Skill Name} MCP Server Installation Script
+
+set -e
+
+echo "🚀 {Skill Name} MCP Server Installation"
+echo "======================================"
+
+INSTALL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+echo "📁 Installation directory: $INSTALL_DIR"
+
+# Check Python
+python3 --version || {
+    echo "❌ Python 3 is required"
+    exit 1
+}
+
+# Install dependencies
+if [ -f "$INSTALL_DIR/requirements.txt" ]; then
+    pip3 install -r "$INSTALL_DIR/requirements.txt" || {
+        echo "⚠️ Failed to install dependencies, continuing..."
+    }
+fi
+
+# Test server
+echo "🧪 Testing MCP server..."
+cd "$INSTALL_DIR"
+python3 mcp_server.py --test || {
+    echo "❌ Server test failed"
+    exit 1
+}
+
+# Generate MCP configuration
+MCP_CONFIG_DIR="$HOME/.config/mcp"
+mkdir -p "$MCP_CONFIG_DIR"
+sed "s|/path/to/skill|$INSTALL_DIR|g" "$INSTALL_DIR/mcp_config.json" > "$MCP_CONFIG_DIR/{skill-name}.json"
+
+echo "✅ Installation completed!"
+echo "📋 Next steps:"
+echo "1. Configure credentials: cp {skill_name}_config_example.json {skill_name}_config_local.json"
+echo "2. Test configuration: python3 test_{skill_name}.py"  
+echo "3. MCP config saved to: $MCP_CONFIG_DIR/{skill-name}.json"
+echo "4. Add to your AI agent's MCP settings"
+```
+
+### 11.4 AI Agent Integration
+
+#### Claude Desktop Configuration
+```json
+{
+  "mcpServers": {
+    "{skill-name}": {
+      "command": "python3",
+      "args": ["/path/to/skill/mcp_server.py"],
+      "env": {
+        "PYTHONPATH": "/path/to/skill"
+      }
+    }
+  }
+}
+```
+
+#### Generic MCP Client Integration
+```python
+from mcp import ClientSession, StdioServerParameters
+
+async def use_skill():
+    server_params = StdioServerParameters(
+        command="python3",
+        args=["/path/to/skill/mcp_server.py"]
+    )
+    
+    async with ClientSession(server_params) as session:
+        await session.initialize()
+        
+        tools = await session.list_tools()
+        result = await session.call_tool("skill_function", {
+            "param1": "value1",
+            "param2": "value2"
+        })
+        
+        return result
+```
+
+---
+
+## 12. File Structure and Naming
+
+### 12.1 Standard Project Structure
+```
+{skill-name}/
+├── Core Implementation
+│   ├── {skill_name}_skill.py          # Main skill implementation
+│   ├── mcp_server.py                  # MCP protocol server
+│   └── skill_compat.py                # Framework compatibility layer
+├── Testing & Validation
+│   ├── test_{skill_name}.py           # Test scripts
+│   └── test_mcp_server.py             # MCP server tests
+├── Configuration
+│   ├── {skill_name}_config_example.json # Public configuration template
+│   ├── {skill_name}_config_local.json   # Private config (gitignored)
+│   ├── mcp_config.json                  # MCP client configuration
+│   └── claude_desktop_config.json      # Claude Desktop integration
+├── Deployment
+│   ├── install.sh                      # Installation script
+│   ├── requirements.txt                # Python dependencies
+│   └── .gitignore                      # Security exclusions
+└── Documentation
+    ├── README.md                       # Project overview
+    ├── MCP_DEPLOYMENT.md               # MCP integration guide
+    └── {SKILL_NAME}_USAGE.md           # Detailed usage guide
+```
+
+### 12.2 Framework-Agnostic Organization
+
+For skills that may be integrated into existing frameworks (like LocalDailyReport), also support:
 
 ```
-ldr/skills/
+framework/skills/
 ├── __init__.py
 ├── base.py                    # Base Skill protocol
 ├── registry.py                # Skill registry
@@ -762,7 +1165,7 @@ ldr/skills/
     └── helpers.py
 ```
 
-### 11.2 Skill File Template
+### 12.3 Skill File Template
 
 File: `{skill_name}_skill.py`
 
@@ -1173,45 +1576,40 @@ def get_mcp_prompts(self):
 
 ### 18.1 Schema Export
 
-All skills are automatically exported to `mcp_schema_export.json`:
+All skills can be exported to `mcp_schema_export.json`:
 
 ```python
-# Generate schema export
-python -c "from ldr.mcp import LocalDailyReportMcpServer; server = LocalDailyReportMcpServer(); server.export_schema('mcp_schema_export.json')"
+# Generate schema export from individual skill
+python -c "from {skill_name}_skill import {SkillName}Skill; skill = {SkillName}Skill(); import json; print(json.dumps(skill.get_openai_schema(), indent=2))"
 ```
 
 ### 18.2 MCP Server Integration
 
-Skills are automatically available via MCP server:
+Skills are available via dedicated MCP servers:
 
 ```bash
-# Start MCP server
-python start_mcp_server.py --host 127.0.0.1 --port 8001
+# Start individual skill MCP server
+python mcp_server.py
 
-# Access via HTTP
-curl http://localhost:8001/mcp/tools
-curl http://localhost:8001/mcp/resources
-curl http://localhost:8001/mcp/prompts
+# Test MCP server functionality
+python mcp_server.py --test
 ```
 
 ### 18.3 MCP Client Integration
 
 ```python
-from ldr.mcp import LocalDailyReportMcpServer
+from {skill_name}_skill import {SkillName}McpServer
 
-server = LocalDailyReportMcpServer()
+server = {SkillName}McpServer()
 
 # List all tools
 tools = server.list_tools()
 
 # Call a tool
-result = server.call_tool("git_reader", {"include_uncommitted": True})
+result = server.call_tool("{skill_function_name}", {"param1": "value1"})
 
 # Read a resource
-data = server.read_resource("git://repository/status")
-
-# Get a prompt
-prompt = server.get_prompt("git_summary_chinese", {})
+data = server.read_resource("skill://resource/data")
 ```
 
 ---
@@ -1452,27 +1850,26 @@ Quick reference for JSON Schema types and constraints:
 - JSON Schema: https://json-schema.org/
 - Model Context Protocol: https://modelcontextprotocol.io/
 
-### LocalDailyReport Documentation
+### AI-Powered Application Documentation
 - Main README: `/README.md`
-- MCP Integration Guide: `/docs/mcp-integration.md`
-- AI Agent Integration: `/docs/ai-agent-integration.md`
-- Language Support: `/docs/language-support.md`
+- MCP Integration Guide: `/MCP_DEPLOYMENT.md`
+- Installation Guide: `/install.sh`
+- Usage Documentation: `/{SKILL_NAME}_USAGE.md`
 
 ### Example Implementations
-- GitReaderSkill: `/ldr/skills/git_reader_skill.py`
-- GitSummarySkill: `/ldr/skills/git_summary_skill.py`
-- DailyReportSkill: `/ldr/skills/daily_report_skill.py`
-- FileSkill: `/ldr/skills/file_skill.py`
-- DirectorySkill: `/ldr/skills/dir_skill.py`
+- Gmail Check Skill: `/gmail_check_skill.py`
+- MCP Server Template: `/mcp_server.py`
+- Configuration Management: `/skill_compat.py`
+- Test Framework: `/test_gmail_skill.py`
 
 ---
 
 ## End of Specification
 
-This document is designed to be read and understood by AI systems for automated skill generation. All standards, conventions, and examples are provided to ensure consistent, high-quality skill development.
+This document is designed to be read and understood by AI systems for automated skill generation. All standards, conventions, and examples are provided to ensure consistent, high-quality skill development that works across multiple AI agent platforms.
 
-For questions or clarifications, refer to the example implementations or the MCP integration documentation.
+For questions or clarifications, refer to the example implementations or the MCP deployment documentation.
 
 **Last Updated**: 2026-02-11  
-**Document Version**: 1.0.0  
-**Framework Version**: LocalDailyReport 1.0.0
+**Document Version**: 2.0.0  
+**Target Applications**: AI-Powered Skills and Agents
