@@ -5,11 +5,15 @@
 ## 项目文件
 
 - `gmail_check_skill.py` - 主要的skill实现
+- `mcp_server.py` - MCP服务器实现，支持AI agent集成
 - `ldr_compat.py` - 框架兼容模块，支持独立运行
 - `test_gmail_skill.py` - 测试脚本
 - `example_usage.py` - 使用示例
 - `gmail_config_example.json` - 配置文件示例模板
 - `gmail_config_local.json` - 本地测试配置（需自己创建，不会上传git）
+- `claude_desktop_config.json` - Claude Desktop配置示例
+- `install.sh` - 自动安装脚本
+- `MCP_DEPLOYMENT.md` - MCP部署和使用指南
 - `README_gmail_skill.md` - 详细使用文档
 - `requirements.txt` - 依赖包说明
 - `.gitignore` - Git忽略文件配置
@@ -33,21 +37,24 @@
 ✅ **技术特性**
 - 线程安全的缓存机制
 - 支持独立运行（无需完整框架）
+- **完整的MCP服务器实现，可被AI agent使用**
 - 完整的MCP资源和工具定义
 - 符合JSON Schema规范的参数验证
 - 优雅的错误处理和故障排除
 
 ## 快速开始
 
-### 1. 测试Schema（无需认证信息）
+### 作为独立Python Skill使用
+
+#### 1. 测试Schema（无需认证信息）
 
 ```bash
 python3 test_gmail_skill.py
 ```
 
-### 2. 配置认证信息
+#### 2. 配置认证信息
 
-#### 方法1: 创建本地配置文件（推荐）
+**方法1: 创建本地配置文件（推荐）**
 
 复制示例配置并填入真实信息：
 
@@ -67,19 +74,53 @@ cp gmail_config_example.json gmail_config_local.json
 }
 ```
 
-#### 方法2: 使用环境变量
+**方法2: 使用环境变量**
 
 ```bash
 export GMAIL_USERNAME='your-email@gmail.com'
 export GMAIL_APP_PASSWORD='your-app-password'
 ```
 
-### 3. 运行测试
+#### 3. 运行测试
 
 ```bash
 python3 test_gmail_skill.py
 # 会自动优先使用 gmail_config_local.json
 ```
+
+### 作为MCP服务器使用（AI Agent集成）
+
+#### 1. 快速安装
+
+```bash
+git clone https://github.com/baddif/mcp-server-gmail-check.git
+cd mcp-server-gmail-check
+./install.sh
+```
+
+#### 2. 配置AI Agent
+
+**Claude Desktop配置:**
+
+```json
+{
+  "mcpServers": {
+    "gmail-check": {
+      "command": "python3",
+      "args": ["/path/to/mcp-server-gmail-check/mcp_server.py"]
+    }
+  }
+}
+```
+
+#### 3. 在AI Agent中使用
+
+AI可以直接调用Gmail检测功能：
+- 工具名称: `gmail_check`
+- 支持的资源: 缓存状态、检测结果等
+- 完整的参数验证和错误处理
+
+📖 **详细MCP部署指南**: [MCP_DEPLOYMENT.md](MCP_DEPLOYMENT.md)
 
 ### 4. 在代码中使用
 

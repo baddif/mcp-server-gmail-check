@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "gmail-check": {
+      "command": "python",
+      "args": [
+        "/path/to/mcp-server-gmail-check/mcp_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/path/to/mcp-server-gmail-check"
+      }
+    }
+  }
+}
