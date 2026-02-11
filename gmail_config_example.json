@@ -1,0 +1,30 @@
+{
+  "username": "your-email@gmail.com",
+  "app_password": "your-16-char-app-password",
+  "email_filters": {
+    "sender1@example.com": [
+      "重要通知",
+      "系统报告",
+      "项目更新"
+    ],
+    "alerts@company.com": [
+      "告警",
+      "故障",
+      "维护通知"
+    ],
+    "jobalerts-noreply@linkedin.com": [
+      "软件工程师",
+      "开发工程师",
+      "技术专家"
+    ],
+    "notifications@github.com": [
+      "Pull Request",
+      "Issue",
+      "Security Alert"
+    ]
+  },
+  "check_interval": 30,
+  "background_mode": false,
+  "max_emails": 100,
+  "days_back": 1
+}

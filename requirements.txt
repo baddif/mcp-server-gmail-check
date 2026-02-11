@@ -1,0 +1,13 @@
+# Gmail Check Skill 依赖包
+# Gmail IMAP连接已经在Python标准库中，无需额外安装
+
+# 可选：用于更好的邮件解析
+# email-reply-parser==0.5.12
+
+# 可选：用于HTML内容解析
+# beautifulsoup4==4.12.2
+# lxml==4.9.3
+
+# 开发和测试
+# pytest==7.4.3
+# pytest-cov==4.1.0

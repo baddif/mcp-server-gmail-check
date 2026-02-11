@@ -1,0 +1,1478 @@
+# Skill Generation Rules for LocalDailyReport
+
+**Version**: 1.0.0  
+**Last Updated**: 2026-02-11  
+**Purpose**: AI-readable specification for generating new skills compatible with LocalDailyReport framework
+
+---
+
+## Overview
+
+This document defines the complete standards and requirements for creating skills in the LocalDailyReport framework. Skills must support both **OpenAI Function Calling** and **MCP (Model Context Protocol)** standards for maximum compatibility.
+
+### Dual Standard Support
+
+All skills in LocalDailyReport implement:
+1. **OpenAI Function Calling** - JSON Schema based function definitions
+2. **MCP (Model Context Protocol)** - Tools, Resources, and Prompts interfaces
+
+---
+
+## 1. Core Skill Interface
+
+### 1.1 Base Protocol
+
+Every skill MUST implement the `Skill` protocol:
+
+```python
+from typing import Protocol, Any
+from ..context import ExecutionContext
+
+class Skill(Protocol):
+    """Skill interface. Each skill must implement execute(ctx, **kwargs) -> Any"""
+    
+    def execute(self, ctx: ExecutionContext, **kwargs) -> Any:
+        ...
+```
+
+### 1.2 MCP Compatible Skill (Recommended)
+
+For full MCP support, extend `McpCompatibleSkill`:
+
+```python
+from ldr.mcp.base import McpCompatibleSkill
+from typing import Dict, Any
+
+class YourSkill(McpCompatibleSkill):
+    
+    @abstractmethod
+    def get_openai_schema(self) -> Dict[str, Any]:
+        """Return OpenAI Function Calling compatible JSON Schema"""
+        pass
+    
+    @abstractmethod
+    def execute(self, ctx, **kwargs) -> Any:
+        """Execute the skill with given parameters"""
+        pass
+    
+    # Optional: Override for MCP Resources
+    def get_mcp_resources(self) -> List[McpResource]:
+        return []
+    
+    # Optional: Override for MCP Prompts
+    def get_mcp_prompts(self) -> List[McpPrompt]:
+        return []
+```
+
+---
+
+## 2. OpenAI Function Calling JSON Schema
+
+### 2.1 Standard Schema Structure
+
+All skills MUST provide a `get_schema()` or `get_openai_schema()` method returning:
+
+```python
+{
+    "type": "function",
+    "function": {
+        "name": "skill_name",              # Snake_case, lowercase
+        "description": "Detailed description",  # What the skill does
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "param_name": {
+                    "type": "string|integer|boolean|object|array",
+                    "description": "Parameter description",
+                    "default": None,        # Optional default value
+                    "enum": [],            # Optional: allowed values
+                    "minimum": 0,          # Optional: for integers
+                    "maximum": 100         # Optional: for integers
+                }
+            },
+            "required": ["required_param"]  # List of required parameters
+        }
+    }
+}
+```
+
+### 2.2 Schema Best Practices
+
+#### Naming Conventions
+- **Skill names**: `snake_case`, descriptive (e.g., `git_reader`, `daily_report`)
+- **Parameter names**: `snake_case`, clear purpose (e.g., `include_uncommitted`, `snapshot_name`)
+
+#### Description Guidelines
+- **Function description**: 1-3 sentences explaining purpose and capabilities
+- **Parameter description**: Clear explanation including behavior and constraints
+- **Mention language support** explicitly if AI-powered
+- **Specify defaults** clearly in descriptions
+
+#### Type Specifications
+- Use appropriate JSON Schema types: `string`, `integer`, `boolean`, `object`, `array`
+- Add constraints: `minimum`, `maximum`, `enum`, `pattern`
+- Set sensible defaults for optional parameters
+
+### 2.3 Example: Complete Schema
+
+```python
+@staticmethod
+def get_schema() -> Dict[str, Any]:
+    """Return OpenAI Function Calling compatible JSON Schema"""
+    return {
+        "type": "function",
+        "function": {
+            "name": "git_reader",
+            "description": "Extract Git repository commits and changes information. Pure data extraction without AI processing. Provides structured data for other AI-powered skills like git_summary.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Git username/email to filter commits. If not provided, uses current Git user automatically detected from repository configuration.",
+                        "default": None
+                    },
+                    "include_uncommitted": {
+                        "type": "boolean",
+                        "description": "Whether to include uncommitted changes (staged and unstaged files) in the analysis results.",
+                        "default": True
+                    }
+                },
+                "required": []  # Both parameters are optional
+            }
+        }
+    }
+```
+
+---
+
+## 3. Input Parameters Specification
+
+### 3.1 Common Parameter Types
+
+#### Path Parameters
+```python
+"path": {
+    "type": "string",
+    "description": "Absolute or relative file/directory path",
+    "default": "."  # Current directory
+}
+```
+
+#### Boolean Flags
+```python
+"include_uncommitted": {
+    "type": "boolean",
+    "description": "Whether to include uncommitted changes",
+    "default": True
+}
+```
+
+#### Language Parameters (AI Skills)
+```python
+"language": {
+    "type": "string",
+    "description": "Language for output generation. Supports 'Chinese' (default, 中文) or 'English' only.",
+    "default": "Chinese",
+    "enum": ["Chinese", "English"]
+}
+```
+
+#### Template Parameters (AI Skills)
+```python
+"template": {
+    "type": "string",
+    "description": "Custom prompt template. Use {placeholder1}, {placeholder2} as placeholders. If not provided, uses built-in templates.",
+    "default": None
+}
+```
+
+#### Numeric Parameters
+```python
+"days": {
+    "type": "integer",
+    "description": "Number of days to analyze",
+    "default": 1,
+    "minimum": 1,
+    "maximum": 30
+}
+```
+
+### 3.2 Parameter Design Principles
+
+1. **Sensible Defaults**: Every optional parameter should have a useful default
+2. **Clear Constraints**: Use `enum`, `minimum`, `maximum` to validate inputs
+3. **Self-Documenting**: Descriptions should explain purpose, behavior, and defaults
+4. **Minimal Required**: Only mark parameters as `required` if absolutely necessary
+
+---
+
+## 4. MCP (Model Context Protocol) Standard Support
+
+### 4.1 MCP Components
+
+Skills can provide three types of MCP components:
+
+#### Tools (Functions)
+- Automatically generated from OpenAI schema
+- Represents executable functionality
+
+#### Resources (Data Access)
+- Read-only data endpoints
+- URI-based addressing
+- Optional caching support
+
+#### Prompts (Templates)
+- Structured prompt templates
+- Can accept arguments
+- Return formatted messages
+
+### 4.2 MCP Tool Definition
+
+Tools are automatically converted from OpenAI schemas:
+
+```python
+from ldr.mcp.base import McpTool
+
+def get_mcp_tool(self) -> McpTool:
+    """Convert to MCP Tool format"""
+    openai_schema = self.get_openai_schema()
+    return McpTool.from_openai_schema(openai_schema)
+```
+
+Result format:
+```json
+{
+    "name": "skill_name",
+    "description": "Skill description",
+    "inputSchema": {
+        "type": "object",
+        "properties": {...},
+        "required": [...]
+    }
+}
+```
+
+### 4.3 MCP Resources
+
+Define accessible data sources:
+
+```python
+from ldr.mcp.base import McpResource
+
+def get_mcp_resources(self) -> List[McpResource]:
+    """Define MCP Resources for this skill"""
+    return [
+        McpResource(
+            uri="skill://skill_name/resource-name",
+            name="resource_name",
+            description="Description of the resource",
+            mime_type="application/json",  # or "text/plain", "text/html"
+            annotations={
+                "cached": True  # Optional: enable caching
+            }
+        )
+    ]
+```
+
+#### Resource URI Conventions
+
+Follow these URI patterns:
+- `git://repository/*` - Git repository data
+- `git://summary/*` - Git summary data
+- `report://daily/*` - Daily report data
+- `skill://[skill_name]/*` - Skill-specific resources
+- `file://[path]` - File system resources
+- `directory://[path]` - Directory resources
+
+#### Common Resource Types
+
+1. **Data Resources**: Current state data (JSON)
+2. **Status Resources**: System/skill status (JSON)
+3. **Template Resources**: Prompt templates (text)
+4. **Content Resources**: Generated content (text/JSON)
+
+### 4.4 MCP Prompts
+
+Define prompt templates:
+
+```python
+from ldr.mcp.base import McpPrompt
+
+def get_mcp_prompts(self) -> List[McpPrompt]:
+    """Define MCP Prompts for this skill"""
+    return [
+        McpPrompt(
+            name="skill_name_chinese",
+            description="Chinese language prompt for skill_name",
+            arguments=[
+                {
+                    "name": "context",
+                    "description": "Additional context for generation",
+                    "required": False
+                }
+            ]
+        )
+    ]
+```
+
+#### Prompt Naming Conventions
+- `[skill]_chinese` - Chinese language prompts
+- `[skill]_english` - English language prompts  
+- `[skill]_template` - Template retrieval prompts
+- `[skill]_analysis` - Analysis/generation prompts
+
+---
+
+## 5. Skill Categories and Patterns
+
+### 5.1 Data Extraction Skills
+
+**Purpose**: Pure data retrieval without AI processing
+
+**Characteristics**:
+- No `language` parameter
+- No `template` parameter
+- Focus on structured data output
+- Deterministic results
+
+**Example**: `GitReaderSkill`, `FileSkill`, `DirectorySkill`
+
+**Schema Pattern**:
+```python
+{
+    "name": "data_reader",
+    "description": "Extract data from source. Pure data extraction without AI processing.",
+    "parameters": {
+        "properties": {
+            "source": {"type": "string", "description": "Data source path"},
+            "include_metadata": {"type": "boolean", "default": True}
+        },
+        "required": ["source"]
+    }
+}
+```
+
+### 5.2 AI-Powered Analysis Skills
+
+**Purpose**: Intelligent processing and generation using AI
+
+**Characteristics**:
+- MUST include `language` parameter with `enum: ["Chinese", "English"]`
+- SHOULD include `template` parameter for customization
+- MAY include `include_context` for historical data
+- Non-deterministic results
+
+**Example**: `GitSummarySkill`, `DailyReportSkill`
+
+**Schema Pattern**:
+```python
+{
+    "name": "ai_analyzer",
+    "description": "Analyze data and generate AI-powered insights. Supports Chinese (default) and English languages with built-in templates.",
+    "parameters": {
+        "properties": {
+            "data": {"type": "object", "description": "Input data to analyze"},
+            "language": {
+                "type": "string",
+                "description": "Language for output. Supports 'Chinese' (default) or 'English' only.",
+                "default": "Chinese",
+                "enum": ["Chinese", "English"]
+            },
+            "template": {
+                "type": "string",
+                "description": "Custom prompt template. Use {data}, {language} as placeholders.",
+                "default": None
+            }
+        },
+        "required": ["data"]
+    }
+}
+```
+
+### 5.3 File System Skills
+
+**Purpose**: File and directory operations
+
+**Characteristics**:
+- `path` parameter (required)
+- Optional `read` or `recurse` flags
+- Metadata extraction
+- Snapshot support (optional)
+
+**Example**: `FileSkill`, `DirectorySkill`
+
+### 5.4 Reporting Skills
+
+**Purpose**: Generate comprehensive reports
+
+**Characteristics**:
+- Combine multiple data sources
+- Multi-language support
+- Template customization
+- Context awareness
+- Structured output (often JSON)
+
+**Example**: `DailyReportSkill`
+
+---
+
+## 6. Implementation Requirements
+
+### 6.1 Execution Method
+
+All skills MUST implement:
+
+```python
+def execute(self, ctx: ExecutionContext, **kwargs) -> Any:
+    """
+    Execute the skill with given parameters
+    
+    Args:
+        ctx: Execution context for storing and retrieving shared data
+        **kwargs: Parameters matching the schema definition
+        
+    Returns:
+        Skill-specific result (dict, list, string, etc.)
+    """
+    pass
+```
+
+### 6.2 Return Value Standards
+
+#### Success Response (Data Skills)
+```python
+{
+    "success": True,
+    "function_name": "skill_name",
+    "data": {
+        # Structured data here
+    },
+    "statistics": {
+        # Summary statistics
+    }
+}
+```
+
+#### Success Response (AI Skills)
+```python
+{
+    "success": True,
+    "function_name": "skill_name",
+    "result": "Generated content...",
+    "metadata": {
+        "language": "Chinese",
+        "template_used": "built-in",
+        "timestamp": "2026-02-11T08:00:00Z"
+    }
+}
+```
+
+#### Error Response
+```python
+{
+    "success": False,
+    "function_name": "skill_name",
+    "error": {
+        "message": "Error description",
+        "type": "execution_error|validation_error|file_not_found"
+    }
+}
+```
+
+### 6.3 Context Usage
+
+Use ExecutionContext to share data between skills:
+
+```python
+# Store data
+ctx.set("skill:skill_name:key", value)
+
+# Retrieve data
+value = ctx.get("skill:skill_name:key")
+
+# Common patterns
+ctx.set(f"skill:{skill_name}:result", result)
+ctx.set(f"file:{path}", file_metadata)
+ctx.set(f"git:summary", git_summary)
+```
+
+### 6.4 Error Handling
+
+```python
+def execute(self, ctx: ExecutionContext, **kwargs) -> Any:
+    try:
+        # Validate inputs
+        if not validate_params(kwargs):
+            return {
+                "success": False,
+                "error": {"message": "Invalid parameters", "type": "validation_error"}
+            }
+        
+        # Execute logic
+        result = perform_operation(**kwargs)
+        
+        # Store in context
+        ctx.set(f"skill:{self.__class__.__name__}:result", result)
+        
+        return {
+            "success": True,
+            "function_name": "skill_name",
+            "data": result
+        }
+        
+    except FileNotFoundError as e:
+        return {
+            "success": False,
+            "error": {"message": str(e), "type": "file_not_found"}
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {"message": str(e), "type": "execution_error"}
+        }
+```
+
+---
+
+## 7. Language Support Implementation
+
+### 7.1 Multi-Language Skills
+
+For AI-powered skills requiring language support:
+
+#### Schema Definition
+```python
+"language": {
+    "type": "string",
+    "description": "Language for output. Supports 'Chinese' (default, 中文) or 'English' only.",
+    "default": "Chinese",
+    "enum": ["Chinese", "English"]
+}
+```
+
+#### Built-in Templates
+```python
+TEMPLATES = {
+    "Chinese": """
+基于以下数据生成中文摘要：
+数据：{data}
+要求：{requirements}
+""",
+    "English": """
+Generate an English summary based on the following data:
+Data: {data}
+Requirements: {requirements}
+"""
+}
+
+def get_template(self, language: str, custom_template: str = None) -> str:
+    """Get template for specified language"""
+    if custom_template:
+        return custom_template
+    return TEMPLATES.get(language, TEMPLATES["Chinese"])
+```
+
+#### Template Placeholders
+
+Common placeholders:
+- `{language}` - Target language
+- `{data}` - Input data
+- `{commits}` - Git commits (for git skills)
+- `{changes}` - Git changes (for git skills)
+- `{git_summary}` - Git summary (for report skills)
+- `{statistics}` - Statistical data
+- `{context}` - Historical context
+
+### 7.2 Template Internalization
+
+**Best Practice**: Internalize templates in code, not external files
+
+Reasons:
+1. No file I/O overhead
+2. Easier deployment
+3. Version control with code
+4. No missing file errors
+
+---
+
+## 8. MCP Resource Implementation
+
+### 8.1 Read Resource Method
+
+```python
+def read_resource(self, uri: str) -> Dict[str, Any]:
+    """
+    MCP resource read interface
+    
+    Args:
+        uri: Resource URI (e.g., "skill://skill_name/resource")
+        
+    Returns:
+        MCP resource response
+    """
+    # Parse URI
+    if uri == "skill://skill_name/data":
+        return {
+            "contents": [
+                {
+                    "uri": uri,
+                    "mimeType": "application/json",
+                    "text": json.dumps(self.get_data())
+                }
+            ]
+        }
+    
+    return {
+        "contents": [
+            {
+                "uri": uri,
+                "mimeType": "text/plain",
+                "text": f"Resource {uri} not found"
+            }
+        ]
+    }
+```
+
+### 8.2 Resource Caching
+
+For static or slowly-changing resources:
+
+```python
+McpResource(
+    uri="skill://skill_name/static-data",
+    name="static_data",
+    description="Static reference data",
+    mime_type="application/json",
+    annotations={
+        "cached": True,  # Enable caching
+        "ttl": 3600     # Cache TTL in seconds (optional)
+    }
+)
+```
+
+---
+
+## 9. MCP Prompt Implementation
+
+### 9.1 Get Prompt Method
+
+```python
+def get_prompt(self, name: str, arguments: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    MCP prompt get interface
+    
+    Args:
+        name: Prompt name
+        arguments: Optional prompt arguments
+        
+    Returns:
+        MCP prompt response with messages
+    """
+    arguments = arguments or {}
+    
+    if name == "skill_name_chinese":
+        template = self.get_chinese_template()
+        return {
+            "description": "Generate Chinese output",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": {
+                        "type": "text",
+                        "text": template.format(**arguments)
+                    }
+                }
+            ]
+        }
+    
+    return {
+        "description": f"Prompt {name} not found",
+        "messages": []
+    }
+```
+
+---
+
+## 10. Testing Requirements
+
+### 10.1 Schema Validation
+
+Test that schema is valid:
+
+```python
+def test_schema_validity():
+    schema = YourSkill.get_schema()
+    assert "function" in schema
+    assert "name" in schema["function"]
+    assert "description" in schema["function"]
+    assert "parameters" in schema["function"]
+```
+
+### 10.2 Execution Tests
+
+Test skill execution:
+
+```python
+def test_skill_execution():
+    skill = YourSkill()
+    ctx = ExecutionContext()
+    result = skill.execute(ctx, param1="value1")
+    assert result is not None
+    assert "success" in result
+```
+
+### 10.3 MCP Compatibility Tests
+
+Test MCP interfaces:
+
+```python
+def test_mcp_compatibility():
+    skill = YourSkill()
+    
+    # Test tool conversion
+    tool = skill.get_mcp_tool()
+    assert tool.name == "your_skill"
+    
+    # Test resources
+    resources = skill.get_mcp_resources()
+    assert isinstance(resources, list)
+    
+    # Test prompts
+    prompts = skill.get_mcp_prompts()
+    assert isinstance(prompts, list)
+```
+
+---
+
+## 11. File Structure and Naming
+
+### 11.1 Skill File Organization
+
+```
+ldr/skills/
+├── __init__.py
+├── base.py                    # Base Skill protocol
+├── registry.py                # Skill registry
+├── specs/                     # Specifications
+│   └── skill_template.yaml    # Template for new skills
+├── {skill_name}_skill.py      # Individual skill files
+└── {skill_name}/              # Optional: skill-specific modules
+    ├── __init__.py
+    └── helpers.py
+```
+
+### 11.2 Skill File Template
+
+File: `{skill_name}_skill.py`
+
+```python
+"""
+{Skill Name} - {Brief Description}
+
+Description:
+    {Detailed description of what the skill does}
+    
+Features:
+    - Feature 1
+    - Feature 2
+    
+MCP Support:
+    - Tools: {tool_name}
+    - Resources: {count} resources
+    - Prompts: {count} prompts
+"""
+
+from typing import Any, Dict, List
+from ldr.mcp.base import McpCompatibleSkill, McpResource, McpPrompt
+from ldr.context import ExecutionContext
+
+
+class {SkillName}Skill(McpCompatibleSkill):
+    """
+    {Skill Name} Skill
+    
+    {Detailed description}
+    """
+    
+    @staticmethod
+    def get_schema() -> Dict[str, Any]:
+        """Return OpenAI Function Calling compatible JSON Schema"""
+        return {
+            "type": "function",
+            "function": {
+                "name": "{skill_name}",
+                "description": "{Description}",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        # Parameters here
+                    },
+                    "required": []
+                }
+            }
+        }
+    
+    def get_openai_schema(self) -> Dict[str, Any]:
+        """Return OpenAI Function Calling compatible JSON Schema"""
+        return self.get_schema()
+    
+    def execute(self, ctx: ExecutionContext, **kwargs) -> Any:
+        """
+        Execute the skill
+        
+        Args:
+            ctx: Execution context
+            **kwargs: Skill parameters
+            
+        Returns:
+            Skill result
+        """
+        # Implementation here
+        pass
+    
+    def get_mcp_resources(self) -> List[McpResource]:
+        """Define MCP Resources"""
+        return [
+            # Resources here
+        ]
+    
+    def get_mcp_prompts(self) -> List[McpPrompt]:
+        """Define MCP Prompts"""
+        return [
+            # Prompts here
+        ]
+```
+
+### 11.3 Naming Conventions
+
+- **Class name**: `{SkillName}Skill` (PascalCase + "Skill" suffix)
+- **File name**: `{skill_name}_skill.py` (snake_case + "_skill" suffix)
+- **Function name**: `{skill_name}` (snake_case, matches file prefix)
+
+Examples:
+- `GitReaderSkill` → `git_reader_skill.py` → `git_reader`
+- `DailyReportSkill` → `daily_report_skill.py` → `daily_report`
+- `FileSkill` → `file_skill.py` → `file`
+
+---
+
+## 12. Registration and Discovery
+
+### 12.1 Skill Registry
+
+Add new skills to `ldr/skills/registry.py`:
+
+```python
+from .{skill_name}_skill import {SkillName}Skill
+
+SKILL_REGISTRY = {
+    "{skill_name}": {SkillName}Skill,
+    # ... other skills
+}
+```
+
+### 12.2 Auto-Discovery
+
+Skills are automatically discovered by the MCP server:
+
+```python
+from ldr.skills import registry
+
+# Get all registered skills
+all_skills = registry.SKILL_REGISTRY
+
+# Instantiate a skill
+skill_class = all_skills["git_reader"]
+skill_instance = skill_class()
+```
+
+---
+
+## 13. Best Practices and Guidelines
+
+### 13.1 General Guidelines
+
+1. **Single Responsibility**: Each skill should do one thing well
+2. **Clear Naming**: Names should be descriptive and unambiguous
+3. **Comprehensive Documentation**: Include docstrings and schema descriptions
+4. **Error Handling**: Always handle errors gracefully
+5. **Context Usage**: Use context to share data between skills
+6. **Testability**: Write testable code with clear inputs/outputs
+
+### 13.2 Schema Design
+
+1. **Descriptive**: Descriptions should explain purpose and behavior
+2. **Complete**: Include all constraints and defaults
+3. **Validated**: Use JSON Schema features for validation
+4. **Discoverable**: AI should understand capabilities from schema alone
+
+### 13.3 MCP Design
+
+1. **Meaningful Resources**: Only expose truly useful data
+2. **Logical URIs**: Follow URI conventions consistently
+3. **Cached Static Data**: Use caching for unchanging resources
+4. **Useful Prompts**: Provide valuable prompt templates
+
+### 13.4 Performance
+
+1. **Lazy Loading**: Load resources only when needed
+2. **Caching**: Cache expensive computations
+3. **Async Support**: Consider async operations for I/O
+4. **Memory Management**: Clean up large objects
+
+### 13.5 Security
+
+1. **Path Validation**: Validate and sanitize file paths
+2. **Input Validation**: Validate all user inputs
+3. **Error Messages**: Don't leak sensitive information
+4. **Resource Access**: Control access to sensitive resources
+
+---
+
+## 14. Examples from Existing Skills
+
+### 14.1 GitReaderSkill (Data Extraction)
+
+**Purpose**: Extract Git repository data  
+**Category**: Data Extraction  
+**MCP Support**: Tools + Resources
+
+```python
+{
+    "name": "git_reader",
+    "description": "Extract Git repository commits and changes information. Pure data extraction without AI processing.",
+    "parameters": {
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "Git username/email to filter commits. If not provided, uses current Git user",
+                "default": None
+            },
+            "include_uncommitted": {
+                "type": "boolean",
+                "description": "Whether to include uncommitted changes",
+                "default": True
+            }
+        },
+        "required": []
+    }
+}
+```
+
+**MCP Resources**:
+- `git://repository/commits`
+- `git://repository/changes`
+- `git://repository/status`
+
+### 14.2 GitSummarySkill (AI Analysis)
+
+**Purpose**: AI-powered Git activity summary  
+**Category**: AI Analysis  
+**MCP Support**: Tools + Resources + Prompts
+
+```python
+{
+    "name": "git_summary",
+    "description": "Analyze Git repository activity and generate AI-powered work summaries. Supports Chinese (default) and English languages with built-in templates.",
+    "parameters": {
+        "properties": {
+            "username": {"type": "string", "default": None},
+            "include_uncommitted": {"type": "boolean", "default": True},
+            "template": {
+                "type": "string",
+                "description": "Custom prompt template. Use {commits}, {changes}, {language} as placeholders.",
+                "default": None
+            },
+            "language": {
+                "type": "string",
+                "description": "Language for summary. Supports 'Chinese' (default) or 'English' only.",
+                "default": "Chinese",
+                "enum": ["Chinese", "English"]
+            }
+        },
+        "required": []
+    }
+}
+```
+
+**MCP Resources**:
+- `git://summary/latest`
+- `git://summary/template`
+
+**MCP Prompts**:
+- `git_summary_chinese`
+- `git_summary_english`
+
+### 14.3 FileSkill (File System)
+
+**Purpose**: Read files and extract metadata  
+**Category**: File System  
+**MCP Support**: Tools + Resources
+
+```python
+{
+    "name": "file",
+    "description": "Read file content and extract metadata information.",
+    "parameters": {
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Absolute or relative file path"
+            },
+            "read": {
+                "type": "boolean",
+                "description": "Whether to read file content",
+                "default": False
+            }
+        },
+        "required": ["path"]
+    }
+}
+```
+
+**MCP Resources**:
+- `skill://file/file-content`
+
+---
+
+## 15. Validation Checklist
+
+Use this checklist when creating a new skill:
+
+### Schema Validation
+- [ ] Schema has `type: "function"` wrapper
+- [ ] Function has `name`, `description`, `parameters`
+- [ ] All parameters have `type` and `description`
+- [ ] Optional parameters have `default` values
+- [ ] Required parameters listed in `required` array
+- [ ] Language parameter includes `enum: ["Chinese", "English"]` (if AI skill)
+- [ ] Template parameter explains placeholders (if AI skill)
+
+### Implementation Validation
+- [ ] Class extends `McpCompatibleSkill`
+- [ ] Implements `get_openai_schema()` method
+- [ ] Implements `execute(ctx, **kwargs)` method
+- [ ] Proper error handling with try/except
+- [ ] Returns structured response with `success` field
+- [ ] Uses context for data sharing: `ctx.set()`, `ctx.get()`
+
+### MCP Validation
+- [ ] Resources follow URI conventions
+- [ ] Resource descriptions are clear
+- [ ] Prompts follow naming conventions
+- [ ] Implements `read_resource()` if resources defined
+- [ ] Implements `get_prompt()` if prompts defined
+
+### File Structure Validation
+- [ ] File named `{skill_name}_skill.py`
+- [ ] Class named `{SkillName}Skill`
+- [ ] Function named `{skill_name}`
+- [ ] Added to `registry.py`
+- [ ] Comprehensive docstrings
+
+### Testing Validation
+- [ ] Schema validation test
+- [ ] Execution test with valid inputs
+- [ ] Error handling test
+- [ ] MCP compatibility test
+
+---
+
+## 16. Troubleshooting Common Issues
+
+### Issue: Schema Not Recognized
+
+**Problem**: AI agent cannot find or parse skill schema  
+**Solution**: 
+- Verify `get_schema()` or `get_openai_schema()` method exists
+- Ensure return value matches OpenAI Function Calling format
+- Check for syntax errors in schema dictionary
+
+### Issue: Parameter Validation Fails
+
+**Problem**: Skill receives unexpected parameter values  
+**Solution**:
+- Add input validation in `execute()` method
+- Use JSON Schema constraints: `minimum`, `maximum`, `enum`
+- Provide clear error messages
+
+### Issue: MCP Resources Not Available
+
+**Problem**: Resources cannot be accessed via MCP  
+**Solution**:
+- Verify `get_mcp_resources()` returns list of `McpResource` objects
+- Implement `read_resource()` method
+- Check URI format matches conventions
+
+### Issue: Language Support Not Working
+
+**Problem**: AI-generated content in wrong language  
+**Solution**:
+- Ensure `language` parameter has `enum: ["Chinese", "English"]`
+- Implement language-specific templates
+- Pass language to AI client correctly
+
+---
+
+## 17. Migration Guide
+
+### From Simple Skill to MCP-Compatible Skill
+
+**Step 1**: Add MCP base class
+```python
+# Before
+class MySkill:
+    pass
+
+# After
+from ldr.mcp.base import McpCompatibleSkill
+
+class MySkill(McpCompatibleSkill):
+    pass
+```
+
+**Step 2**: Rename schema method (if needed)
+```python
+# Before
+@staticmethod
+def get_schema():
+    ...
+
+# After
+def get_openai_schema(self):
+    return self.get_schema()  # Can still use static method
+```
+
+**Step 3**: Add MCP resources (optional)
+```python
+def get_mcp_resources(self):
+    return [
+        McpResource(
+            uri="skill://my_skill/data",
+            name="my_skill_data",
+            description="My skill data"
+        )
+    ]
+```
+
+**Step 4**: Add MCP prompts (optional, for AI skills)
+```python
+def get_mcp_prompts(self):
+    return [
+        McpPrompt(
+            name="my_skill_prompt",
+            description="My skill prompt"
+        )
+    ]
+```
+
+---
+
+## 18. Schema Export and MCP Server
+
+### 18.1 Schema Export
+
+All skills are automatically exported to `mcp_schema_export.json`:
+
+```python
+# Generate schema export
+python -c "from ldr.mcp import LocalDailyReportMcpServer; server = LocalDailyReportMcpServer(); server.export_schema('mcp_schema_export.json')"
+```
+
+### 18.2 MCP Server Integration
+
+Skills are automatically available via MCP server:
+
+```bash
+# Start MCP server
+python start_mcp_server.py --host 127.0.0.1 --port 8001
+
+# Access via HTTP
+curl http://localhost:8001/mcp/tools
+curl http://localhost:8001/mcp/resources
+curl http://localhost:8001/mcp/prompts
+```
+
+### 18.3 MCP Client Integration
+
+```python
+from ldr.mcp import LocalDailyReportMcpServer
+
+server = LocalDailyReportMcpServer()
+
+# List all tools
+tools = server.list_tools()
+
+# Call a tool
+result = server.call_tool("git_reader", {"include_uncommitted": True})
+
+# Read a resource
+data = server.read_resource("git://repository/status")
+
+# Get a prompt
+prompt = server.get_prompt("git_summary_chinese", {})
+```
+
+---
+
+## 19. Deployment Considerations
+
+### 19.1 Standalone Skill Execution
+
+Skills can be executed standalone:
+
+```python
+from ldr.skills.git_reader_skill import GitReaderSkill
+from ldr.context import ExecutionContext
+
+skill = GitReaderSkill()
+ctx = ExecutionContext()
+result = skill.execute(ctx, path=".", days=1)
+```
+
+### 19.2 Workflow Integration
+
+Skills are used in YAML workflows:
+
+```yaml
+name: my_workflow
+steps:
+  - name: read_git
+    skill: git_reader
+    params:
+      include_uncommitted: true
+  
+  - name: generate_summary
+    skill: git_summary
+    params:
+      language: Chinese
+```
+
+### 19.3 MCP Server Deployment
+
+Skills are exposed via MCP server:
+
+```bash
+# Docker deployment
+docker run -p 8001:8001 local-daily-report python start_mcp_server.py
+
+# Systemd service
+systemctl start local-daily-report-mcp
+```
+
+---
+
+## 20. Version History and Future
+
+### Version 1.0.0 (Current)
+
+Initial release with:
+- OpenAI Function Calling support
+- MCP (Model Context Protocol) support
+- Dual standard compatibility
+- Resource and prompt definitions
+- Multi-language support (Chinese, English)
+
+### Planned Features
+
+- Additional language support (Japanese, Korean, etc.)
+- Streaming response support
+- Advanced caching strategies
+- Skill composition and chaining
+- Dynamic skill loading
+- Skill marketplace integration
+
+---
+
+## Appendix A: Complete Skill Template
+
+See `ldr/skills/specs/skill_template.yaml` for the base template.
+
+Full implementation template:
+
+```python
+"""
+Skill Name - Brief Description
+
+This skill provides [functionality description].
+"""
+
+from typing import Any, Dict, List
+from ldr.mcp.base import McpCompatibleSkill, McpResource, McpPrompt
+from ldr.context import ExecutionContext
+
+
+class NewSkill(McpCompatibleSkill):
+    """
+    New Skill Implementation
+    
+    Purpose: [What this skill does]
+    Category: [Data Extraction | AI Analysis | File System | Reporting]
+    """
+    
+    @staticmethod
+    def get_schema() -> Dict[str, Any]:
+        """Return OpenAI Function Calling compatible JSON Schema"""
+        return {
+            "type": "function",
+            "function": {
+                "name": "new_skill",
+                "description": "Detailed description of what the skill does",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "param1": {
+                            "type": "string",
+                            "description": "Description of param1",
+                            "default": "default_value"
+                        }
+                    },
+                    "required": []
+                }
+            }
+        }
+    
+    def get_openai_schema(self) -> Dict[str, Any]:
+        """Return OpenAI schema"""
+        return self.get_schema()
+    
+    def execute(self, ctx: ExecutionContext, **kwargs) -> Any:
+        """
+        Execute the skill
+        
+        Args:
+            ctx: Execution context
+            **kwargs: Skill parameters
+            
+        Returns:
+            Result dictionary with success status
+        """
+        try:
+            # Implementation logic here
+            result = {"data": "result"}
+            
+            # Store in context
+            ctx.set("skill:new_skill:result", result)
+            
+            return {
+                "success": True,
+                "function_name": "new_skill",
+                "data": result
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "function_name": "new_skill",
+                "error": {
+                    "message": str(e),
+                    "type": "execution_error"
+                }
+            }
+    
+    def get_mcp_resources(self) -> List[McpResource]:
+        """Define MCP Resources"""
+        return [
+            McpResource(
+                uri="skill://new_skill/data",
+                name="new_skill_data",
+                description="Data from new skill",
+                mime_type="application/json"
+            )
+        ]
+    
+    def get_mcp_prompts(self) -> List[McpPrompt]:
+        """Define MCP Prompts"""
+        return []
+    
+    def read_resource(self, uri: str) -> Dict[str, Any]:
+        """Read MCP resource"""
+        if uri == "skill://new_skill/data":
+            return {
+                "contents": [
+                    {
+                        "uri": uri,
+                        "mimeType": "application/json",
+                        "text": '{"example": "data"}'
+                    }
+                ]
+            }
+        return super().read_resource(uri)
+```
+
+---
+
+## Appendix B: JSON Schema Reference
+
+Quick reference for JSON Schema types and constraints:
+
+### Basic Types
+- `string` - Text data
+- `integer` - Whole numbers
+- `number` - Decimal numbers
+- `boolean` - true/false
+- `object` - JSON object
+- `array` - JSON array
+- `null` - Null value
+
+### String Constraints
+- `minLength` - Minimum string length
+- `maxLength` - Maximum string length
+- `pattern` - Regular expression pattern
+- `format` - Format type (email, uri, date-time, etc.)
+- `enum` - Allowed values
+
+### Number Constraints
+- `minimum` - Minimum value (inclusive)
+- `maximum` - Maximum value (inclusive)
+- `exclusiveMinimum` - Minimum value (exclusive)
+- `exclusiveMaximum` - Maximum value (exclusive)
+- `multipleOf` - Value must be multiple of this
+
+### Object Constraints
+- `properties` - Property definitions
+- `required` - Required property names
+- `additionalProperties` - Allow additional properties
+- `minProperties` - Minimum number of properties
+- `maxProperties` - Maximum number of properties
+
+### Array Constraints
+- `items` - Item schema
+- `minItems` - Minimum array length
+- `maxItems` - Maximum array length
+- `uniqueItems` - All items must be unique
+
+---
+
+## Appendix C: References
+
+### Official Documentation
+- OpenAI Function Calling: https://platform.openai.com/docs/guides/function-calling
+- JSON Schema: https://json-schema.org/
+- Model Context Protocol: https://modelcontextprotocol.io/
+
+### LocalDailyReport Documentation
+- Main README: `/README.md`
+- MCP Integration Guide: `/docs/mcp-integration.md`
+- AI Agent Integration: `/docs/ai-agent-integration.md`
+- Language Support: `/docs/language-support.md`
+
+### Example Implementations
+- GitReaderSkill: `/ldr/skills/git_reader_skill.py`
+- GitSummarySkill: `/ldr/skills/git_summary_skill.py`
+- DailyReportSkill: `/ldr/skills/daily_report_skill.py`
+- FileSkill: `/ldr/skills/file_skill.py`
+- DirectorySkill: `/ldr/skills/dir_skill.py`
+
+---
+
+## End of Specification
+
+This document is designed to be read and understood by AI systems for automated skill generation. All standards, conventions, and examples are provided to ensure consistent, high-quality skill development.
+
+For questions or clarifications, refer to the example implementations or the MCP integration documentation.
+
+**Last Updated**: 2026-02-11  
+**Document Version**: 1.0.0  
+**Framework Version**: LocalDailyReport 1.0.0
