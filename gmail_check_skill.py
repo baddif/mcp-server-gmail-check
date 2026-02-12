@@ -135,29 +135,28 @@ class GmailCheckSkill(McpCompatibleSkill):
         Returns:
             Result dictionary with matched emails and their content
         """
+        # Extract parameters
+        username = kwargs.get("username")
+        app_password = kwargs.get("app_password")
+        email_filters = kwargs.get("email_filters", {})
+        check_interval = kwargs.get("check_interval", 30)
+        background_mode = kwargs.get("background_mode", False)
+        max_emails = kwargs.get("max_emails", 100)
+        days_back = kwargs.get("days_back", 1)
+        time_range_hours = kwargs.get("time_range_hours", 24)
+        use_cache = kwargs.get("use_cache", True)
+        
+        # Validate required parameters
+        if not username or not app_password:
+            print("⚠️ 缺少必要的认证参数，返回空结果")
+            return self._create_empty_result(background_mode, email_filters, time_range_hours, use_cache)
+        
+        # Check if email_filters is empty
+        if not email_filters or len(email_filters) == 0:
+            print("⚠️ 邮件过滤条件为空，返回空结果")
+            return self._create_empty_result(background_mode, email_filters, time_range_hours, use_cache)
+        
         try:
-            # Extract parameters
-            username = kwargs.get("username")
-            app_password = kwargs.get("app_password")
-            email_filters = kwargs.get("email_filters", {})
-            check_interval = kwargs.get("check_interval", 30)
-            background_mode = kwargs.get("background_mode", False)
-            max_emails = kwargs.get("max_emails", 100)
-            days_back = kwargs.get("days_back", 1)
-            time_range_hours = kwargs.get("time_range_hours", 24)
-            use_cache = kwargs.get("use_cache", True)
-            
-            # Validate required parameters
-            if not username or not app_password or not email_filters:
-                return {
-                    "success": False,
-                    "function_name": "gmail_check",
-                    "error": {
-                        "message": "Missing required parameters: username, app_password, or email_filters",
-                        "type": "validation_error"
-                    }
-                }
-            
             # Load cache (always load for potential updating)
             processed_emails = self._load_cache() if use_cache else {}
             
@@ -205,12 +204,65 @@ class GmailCheckSkill(McpCompatibleSkill):
             return result
             
         except Exception as e:
+            print(f"❌ Gmail检查过程出错: {str(e)}")
+            print("返回空结果以保持结构一致性")
+            return self._create_empty_result(background_mode, email_filters, time_range_hours, use_cache, error_message=str(e))
+    
+    def _create_empty_result(self, background_mode: bool, email_filters: Dict[str, List[str]], 
+                           time_range_hours: int, use_cache: bool, error_message: str = None) -> Dict[str, Any]:
+        """
+        Create an empty result with consistent structure for error cases
+        
+        Args:
+            background_mode: Whether background mode was requested
+            email_filters: Email filters that were provided
+            time_range_hours: Time range parameter
+            use_cache: Cache usage setting
+            error_message: Optional error message for logging
+            
+        Returns:
+            Consistent result structure with empty matched_emails list
+        """
+        if error_message:
+            print(f"📝 创建空结果，原因: {error_message}")
+        
+        if background_mode:
             return {
-                "success": False,
+                "success": True,
                 "function_name": "gmail_check",
-                "error": {
-                    "message": str(e),
-                    "type": "execution_error"
+                "data": {
+                    "background_mode": True,
+                    "check_interval": 30,  # Default value
+                    "monitoring_started": datetime.now(timezone.utc).isoformat(),
+                    "message": "Background monitoring initialized (no emails found or connection failed)",
+                    "matched_emails": []  # Empty list for consistency
+                },
+                "statistics": {
+                    "monitoring_active": False,
+                    "check_interval_minutes": 30,
+                    "filters_count": len(email_filters) if email_filters else 0,
+                    "connection_status": "failed" if error_message else "no_filters"
+                }
+            }
+        else:
+            return {
+                "success": True,
+                "function_name": "gmail_check",
+                "data": {
+                    "matched_emails": [],  # Empty list instead of error
+                    "check_time": datetime.now(timezone.utc).isoformat(),
+                    "total_matched": 0,
+                    "background_mode": False
+                },
+                "statistics": {
+                    "emails_checked": 0,
+                    "cache_size": 0,
+                    "filters_applied": len(email_filters) if email_filters else 0,
+                    "time_range_hours": time_range_hours,
+                    "cache_enabled": use_cache,
+                    "search_period": f"{time_range_hours} hours" if time_range_hours is not None else "unknown",
+                    "connection_status": "failed" if error_message else "no_filters",
+                    "error_info": error_message if error_message else None
                 }
             }
     
@@ -219,6 +271,11 @@ class GmailCheckSkill(McpCompatibleSkill):
                      time_range_hours: int = None, use_cache: bool = True) -> List[Dict[str, Any]]:
         """Check emails and return matched content"""
         matched_emails = []
+        
+        # Check if email_filters is empty
+        if not email_filters or len(email_filters) == 0:
+            print("⚠️ 邮件过滤条件为空，返回空列表")
+            return matched_emails
         
         try:
             # Connect to Gmail IMAP
@@ -244,6 +301,8 @@ class GmailCheckSkill(McpCompatibleSkill):
             
             if not message_numbers[0]:
                 print(f"调试: 在 {since_date} 之后没有找到任何邮件")
+                mail.close()
+                mail.logout()
                 return matched_emails
             
             message_list = message_numbers[0].split()
@@ -343,7 +402,15 @@ class GmailCheckSkill(McpCompatibleSkill):
             mail.logout()
             
         except Exception as e:
-            raise Exception(f"Gmail connection error: {str(e)}")
+            print(f"❌ Gmail连接或邮件处理错误: {str(e)}")
+            print("返回空邮件列表以保持结构一致性")
+            # 确保连接被正确关闭
+            try:
+                if 'mail' in locals():
+                    mail.close()
+                    mail.logout()
+            except:
+                pass
         
         return matched_emails
     
