@@ -5,6 +5,31 @@ All notable changes to the Gmail Check MCP Server project will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-12
+
+### 🆕 Added
+- **Enhanced Output Format**: Added `sender_email` field providing clean email addresses alongside original `sender` field
+- **Output Testing Tools**: New comprehensive test script (`test_output_to_file.py`) for generating real Gmail check results
+- **Development Use Cases**: Generated structured JSON output files for other skills to use as input examples
+- **Sample Data Generation**: Created sample output files for development reference
+
+### 🔧 Improved  
+- **Sender Matching**: Confirmed and documented exact matching behavior (no partial domain matching)
+- **Email Address Extraction**: Enhanced email parsing to handle various sender format styles
+- **Output Structure**: Dual sender fields for both display and programmatic use
+- **Documentation**: Comprehensive sender matching rules and output field explanations
+
+### 📚 Documentation
+- **Filtering Rules**: Detailed explanation of exact email matching vs partial matching
+- **Output Fields**: Complete documentation of all email object fields including new `sender_email`
+- **Usage Examples**: Clear examples showing sender format handling and matching behavior
+- **Test Utilities**: Documentation for output generation tools and usage patterns
+
+### 🧪 Testing
+- **Real Data Generation**: Tools to create actual Gmail check output files for skill development
+- **Format Validation**: Comprehensive testing of email address extraction and sender matching
+- **Cache Bypass**: Testing with `use_cache: false` to ensure all matching emails are retrieved
+
 ## [1.1.2] - 2026-02-12
 
 ### 🔧 Improved

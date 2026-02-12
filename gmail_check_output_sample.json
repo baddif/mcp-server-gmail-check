@@ -1,0 +1,56 @@
+{
+  "test_metadata": {
+    "test_time": "2026-02-12T10:00:00Z",
+    "script_version": "1.0.0",
+    "config_file": "gmail_config_local.json",
+    "test_purpose": "为其他技能提供真实的Gmail检查输出用例",
+    "parameters_used": {
+      "username": "user@example.com",
+      "email_filters": {
+        "notifications@github.com": [
+          "Pull Request",
+          "Issue"
+        ],
+        "jobalerts-noreply@linkedin.com": [
+          "软件工程师",
+          "开发工程师"
+        ]
+      },
+      "background_mode": false,
+      "max_emails": 50,
+      "use_cache": false
+    }
+  },
+  "gmail_check_result": {
+    "success": true,
+    "function_name": "gmail_check",
+    "data": {
+      "matched_emails": [
+        {
+          "sender": "GitHub <notifications@github.com>",
+          "sender_email": "notifications@github.com",
+          "subject": "New Pull Request in your repository",
+          "content": "A new pull request has been submitted...",
+          "date_received": "Mon, 12 Feb 2026 08:30:00 +0000",
+          "message_id": "<github-pr-123@example.com>",
+          "matched_sender_filter": "notifications@github.com",
+          "matched_subject_filters": [
+            "Pull Request"
+          ],
+          "email_id": "abc123def456"
+        }
+      ],
+      "check_time": "2026-02-12T10:00:00Z",
+      "total_matched": 1,
+      "background_mode": false
+    },
+    "statistics": {
+      "emails_checked": 25,
+      "cache_size": 0,
+      "filters_applied": 2,
+      "time_range_hours": 168,
+      "cache_enabled": false,
+      "search_period": "7 days"
+    }
+  }
+}
