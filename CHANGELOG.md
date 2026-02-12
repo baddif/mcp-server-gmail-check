@@ -5,6 +5,24 @@ All notable changes to the Gmail Check MCP Server project will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-02-12
+
+### 🔧 Improved
+- **Error Handling Consistency**: All error scenarios now return success=True with empty matched_emails list instead of error structures
+- **Connection Failure Handling**: Connection failures return consistent success structure with empty results rather than throwing exceptions
+- **Empty Filter Handling**: Empty email_filters parameter now returns success structure instead of validation error
+- **Missing Credentials Handling**: Missing authentication parameters return consistent success structure
+
+### 🐛 Fixed
+- **Structure Consistency**: Fixed inconsistent return structures between success and error cases
+- **Resource Cleanup**: Improved IMAP connection cleanup on errors to prevent resource leaks
+- **Exception Propagation**: Prevented exceptions from breaking the consistent response format
+
+### 📈 User Experience  
+- **Predictable Responses**: All function calls now return the same structure regardless of success/failure
+- **Empty Lists vs Errors**: Programs can now handle empty results more easily than error messages
+- **Better Debugging**: Enhanced logging and error status information in statistics
+
 ## [1.1.1] - 2026-02-12
 
 ### 🐛 Fixed
