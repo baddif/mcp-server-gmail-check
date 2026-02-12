@@ -5,6 +5,23 @@ All notable changes to the Gmail Check MCP Server project will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-02-12
+
+### 🐛 Fixed
+- **Background Monitoring Immediate Execution**: Fixed critical issue where background monitoring mode did not perform immediate check on startup
+- **Monitoring Loop Logic**: Restructured wait logic to check stop event properly and perform initial check immediately
+- **Thread Management**: Improved monitoring thread lifecycle and proper shutdown handling
+
+### 🔧 Improved
+- **Background Mode Testing**: Enhanced test scripts with comprehensive background mode verification
+- **Configuration Examples**: Updated configuration examples with proper cache settings for testing
+- **Debugging Tools**: Added detailed MCP inspector and validation tools
+
+### 📚 Documentation  
+- Added comprehensive test scripts for background mode functionality
+- Enhanced troubleshooting guides for background monitoring
+- Updated validation and testing procedures
+
 ## [1.1.0] - 2026-02-12
 
 ### 🆕 Added

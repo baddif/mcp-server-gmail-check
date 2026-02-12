@@ -460,7 +460,37 @@ class GmailCheckSkill(McpCompatibleSkill):
         def monitoring_loop():
             processed_emails = self._load_cache() if use_cache else {}
             
+            # Perform first check immediately
+            try:
+                matched_emails = self._check_emails(
+                    username, app_password, email_filters, 
+                    processed_emails, max_emails, days_back,
+                    time_range_hours, use_cache
+                )
+                
+                if matched_emails:
+                    # Save updated cache
+                    self._save_cache(processed_emails)
+                    
+                    # Update context with new results
+                    result_data = {
+                        "matched_emails": matched_emails,
+                        "check_time": datetime.now(timezone.utc).isoformat(),
+                        "total_matched": len(matched_emails),
+                        "background_mode": True
+                    }
+                    ctx.set("skill:gmail_check:latest_results", result_data)
+                    ctx.set("skill:gmail_check:last_check", datetime.now(timezone.utc).isoformat())
+                
+            except Exception as e:
+                print(f"Background monitoring error (initial check): {str(e)}")
+            
+            # Continue with periodic checks
             while not self._stop_monitoring.is_set():
+                # Wait for next check
+                if self._stop_monitoring.wait(check_interval * 60):
+                    break  # Exit if stop event is set during wait
+                
                 try:
                     matched_emails = self._check_emails(
                         username, app_password, email_filters, 
@@ -484,9 +514,6 @@ class GmailCheckSkill(McpCompatibleSkill):
                     
                 except Exception as e:
                     print(f"Background monitoring error: {str(e)}")
-                
-                # Wait for next check
-                self._stop_monitoring.wait(check_interval * 60)
         
         # Stop existing monitoring if running
         if self._monitoring_thread and self._monitoring_thread.is_alive():

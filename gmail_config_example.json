@@ -28,5 +28,5 @@
   "max_emails": 100,
   "days_back": 1,
   "time_range_hours": 24,
-  "use_cache": true
+  "use_cache": false
 }

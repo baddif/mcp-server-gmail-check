@@ -86,7 +86,8 @@ def test_gmail_check():
             },
             "background_mode": False,
             "max_emails": 10,
-            "days_back": 3
+            "days_back": 3,
+            "use_cache": False
         }
     
     # 验证配置文件中的关键信息

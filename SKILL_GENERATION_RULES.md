@@ -1683,6 +1683,432 @@ Initial release with:
 
 ---
 
+## 19. Version Control and Update Management
+
+### 19.1 Version Management System
+
+All skills MUST implement comprehensive version control capabilities including:
+
+#### Version Information Module
+
+Create a `version.py` module with the following structure:
+
+```python
+#!/usr/bin/env python3
+"""
+Version Management for [Skill Name] MCP Server
+
+This module provides version information and update utilities for the
+[Skill Name] MCP Server project.
+"""
+
+import os
+import sys
+import json
+import subprocess
+from datetime import datetime
+from typing import Dict, Any, Optional
+
+# Current version information
+__version__ = "1.0.0"
+__release_date__ = "2026-02-12"
+__compatibility_version__ = "2024-11-05"  # MCP protocol version
+
+# Version metadata
+VERSION_INFO = {
+    "version": __version__,
+    "release_date": __release_date__,
+    "mcp_compatibility": __compatibility_version__,
+    "python_min_version": "3.7",
+    "features": [
+        "Feature 1",
+        "Feature 2",
+        # ... list all major features
+    ]
+}
+
+def get_version_info() -> Dict[str, Any]:
+    """Get comprehensive version information"""
+    return VERSION_INFO.copy()
+
+def get_version_string() -> str:
+    """Get formatted version string"""
+    return f"[Skill Name] MCP Server v{__version__} (MCP {__compatibility_version__})"
+
+def check_git_status() -> Optional[Dict[str, Any]]:
+    """Check Git repository status for version tracking"""
+    try:
+        commit_hash = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], 
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+        
+        branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+        
+        # Check for uncommitted changes
+        status_output = subprocess.check_output(
+            ["git", "status", "--porcelain"],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+        
+        return {
+            "commit_hash": commit_hash[:8],
+            "full_commit_hash": commit_hash,
+            "branch": branch,
+            "has_uncommitted_changes": bool(status_output),
+            "is_clean": not bool(status_output)
+        }
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+def check_for_updates() -> Dict[str, Any]:
+    """Check for available updates"""
+    update_info = {
+        "update_available": False,
+        "current_version": __version__,
+        "remote_version": None,
+        "update_instructions": [],
+        "git_status": check_git_status()
+    }
+    
+    try:
+        # Fetch and compare commits
+        subprocess.run(["git", "fetch", "origin", "main"], 
+                      capture_output=True, check=True)
+        
+        local_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"]).decode().strip()
+        remote_commit = subprocess.check_output(
+            ["git", "rev-parse", "origin/main"]).decode().strip()
+        
+        if local_commit != remote_commit:
+            update_info["update_available"] = True
+            update_info["update_instructions"] = [
+                "Updates available! Run: python3 version.py --update",
+                "Or manually: git pull origin main"
+            ]
+            
+        return update_info
+    except Exception as e:
+        update_info["check_error"] = str(e)
+        return update_info
+
+def perform_update() -> Dict[str, Any]:
+    """Perform automatic update"""
+    result = {
+        "success": False,
+        "message": "",
+        "previous_version": __version__,
+        "steps_completed": []
+    }
+    
+    try:
+        # Validation steps
+        git_status = check_git_status()
+        if git_status and git_status["has_uncommitted_changes"]:
+            result["message"] = "Uncommitted changes detected"
+            return result
+        
+        # Update steps
+        steps = [
+            ("Fetching changes", ["git", "fetch", "origin", "main"]),
+            ("Pulling updates", ["git", "pull", "origin", "main"]),
+            ("Running tests", [sys.executable, "test_skill.py"]),
+            ("Testing MCP server", [sys.executable, "mcp_server.py", "--test"])
+        ]
+        
+        for step_name, command in steps:
+            subprocess.run(command, check=True, capture_output=True)
+            result["steps_completed"].append(step_name)
+            
+        result["success"] = True
+        result["message"] = "Update completed successfully!"
+        
+    except subprocess.CalledProcessError as e:
+        result["message"] = f"Update failed: {e}"
+        
+    return result
+```
+
+### 19.2 Command Line Interface
+
+All skills MUST support these version management commands:
+
+```python
+def main():
+    """Command-line interface for version management"""
+    if len(sys.argv) < 2:
+        show_version_info()
+        return
+    
+    command = sys.argv[1]
+    
+    if command == "--version" or command == "-v":
+        print(get_version_string())
+        
+    elif command == "--info":
+        show_version_info()
+        
+    elif command == "--check-updates":
+        update_info = check_for_updates()
+        if update_info["update_available"]:
+            print("🆕 Updates available!")
+            for instruction in update_info["update_instructions"]:
+                print(f"   {instruction}")
+        else:
+            print("✅ You are up to date!")
+            
+    elif command == "--update":
+        result = perform_update()
+        if result["success"]:
+            print(f"🎉 {result['message']}")
+        else:
+            print(f"❌ {result['message']}")
+            
+    elif command == "--json":
+        version_data = {
+            "version_info": get_version_info(),
+            "git_status": check_git_status(),
+            "update_check": check_for_updates()
+        }
+        print(json.dumps(version_data, indent=2, ensure_ascii=False))
+
+if __name__ == "__main__":
+    main()
+```
+
+### 19.3 Update Script (update.sh)
+
+Create an automated update script:
+
+```bash
+#!/bin/bash
+# Automated Update Script for [Skill Name] MCP Server
+
+set -e  # Exit on any error
+
+# Configuration
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_DIR="$PROJECT_DIR/.update_backup_$(date +%Y%m%d_%H%M%S)"
+
+# Utility functions
+log() { echo -e "\033[0;34m[$(date +'%Y-%m-%d %H:%M:%S')]\033[0m $1"; }
+success() { echo -e "\033[0;32m✅ $1\033[0m"; }
+warning() { echo -e "\033[1;33m⚠️  $1\033[0m"; }
+error() { echo -e "\033[0;31m❌ $1\033[0m"; }
+
+# Main update process
+main() {
+    log "Starting update process..."
+    
+    # Check for updates
+    if ! python3 version.py --check-updates | grep -q "Updates available"; then
+        success "Already up to date!"
+        exit 0
+    fi
+    
+    # Backup local configuration files
+    log "Creating backup..."
+    mkdir -p "$BACKUP_DIR"
+    for file in *_local.json claude_desktop_config.json; do
+        if [ -f "$file" ]; then
+            cp "$file" "$BACKUP_DIR/"
+            log "Backed up: $file"
+        fi
+    done
+    
+    # Perform update
+    log "Updating from Git repository..."
+    if python3 version.py --update; then
+        success "Update completed successfully!"
+        
+        # Restore configuration files
+        log "Restoring configuration files..."
+        for file in "$BACKUP_DIR"/*; do
+            if [ -f "$file" ]; then
+                basename_file=$(basename "$file")
+                cp "$file" "$basename_file"
+                log "Restored: $basename_file"
+            fi
+        done
+        
+        # Run post-update tests
+        log "Running post-update validation..."
+        if python3 mcp_server.py --test; then
+            success "All tests passed!"
+            rm -rf "$BACKUP_DIR"
+        else
+            warning "Tests failed - backup preserved at $BACKUP_DIR"
+        fi
+    else
+        error "Update failed - backup preserved at $BACKUP_DIR"
+        exit 1
+    fi
+}
+
+main "$@"
+```
+
+### 19.4 Change Documentation
+
+#### CHANGELOG.md
+
+Maintain a comprehensive changelog following [Keep a Changelog](https://keepachangelog.com/):
+
+```markdown
+# Changelog
+
+All notable changes to [Skill Name] will be documented in this file.
+
+## [1.1.0] - 2026-02-13
+
+### 🆕 Added
+- New feature X with enhanced capabilities
+- Additional parameter Y for better control
+- Version control system integration
+
+### 🔧 Improved  
+- Enhanced error handling for edge cases
+- Better performance in large dataset processing
+- Updated documentation with new examples
+
+### 🐛 Fixed
+- Fixed issue with parameter validation
+- Resolved memory leak in long-running processes
+- Corrected timezone handling in date processing
+
+### 📚 Documentation
+- Updated README with new feature examples
+- Enhanced troubleshooting guide
+- Added migration instructions for v1.0.0 users
+
+## [1.0.0] - 2026-02-12
+- Initial release with core functionality
+- MCP protocol integration
+- Comprehensive test suite
+```
+
+#### UPDATE_GUIDE.md
+
+```markdown
+# [Skill Name] - Version Control & User Update Guide
+
+## 🚀 Quick Update
+
+### Automated Update (Recommended)
+```bash
+cd skill-directory
+./update.sh
+```
+
+### Using Version Management Tool
+```bash
+python3 version.py --check-updates
+python3 version.py --update
+```
+
+## 🔧 Manual Update Steps
+
+1. **Check current version:**
+   ```bash
+   python3 version.py --info
+   ```
+
+2. **Backup configuration files:**
+   ```bash
+   cp *_local.json backup/
+   cp claude_desktop_config.json backup/
+   ```
+
+3. **Update from Git:**
+   ```bash
+   git pull origin main
+   ```
+
+4. **Restore configurations:**
+   ```bash
+   cp backup/*_local.json ./
+   cp backup/claude_desktop_config.json ./
+   ```
+
+5. **Test the update:**
+   ```bash
+   python3 mcp_server.py --test
+   ```
+
+## ⚠️ Troubleshooting
+
+### Update Fails
+- Check Git status: `git status`
+- Resolve conflicts manually
+- Run `git pull origin main` again
+
+### Configuration Lost
+- Restore from backup directory
+- Check example configs for new parameters
+```
+
+### 19.5 MCP Server Version Integration
+
+Update MCP server to include version information:
+
+```python
+# Import version information
+try:
+    from version import __version__, get_version_string, get_version_info
+except ImportError:
+    __version__ = "1.0.0"
+    get_version_string = lambda: f"Skill MCP Server v{__version__}"
+    get_version_info = lambda: {"version": __version__}
+
+class SkillMcpServer:
+    def __init__(self):
+        self.skill = SkillImplementation()
+        
+    async def get_server_info(self) -> Dict[str, Any]:
+        """Get server information including version details"""
+        return {
+            "name": "skill-mcp-server",
+            "version": __version__,
+            "description": f"MCP server for skill processing - {get_version_string()}",
+            "capabilities": {
+                "tools": True,
+                "resources": True,
+                "prompts": False
+            },
+            "version_info": get_version_info()
+        }
+```
+
+### 19.6 Version Control Best Practices
+
+#### Semantic Versioning
+- **MAJOR version**: Incompatible API changes
+- **MINOR version**: Backwards-compatible functionality additions  
+- **PATCH version**: Backwards-compatible bug fixes
+
+#### Release Process
+1. **Update version.py**: Increment version number and update metadata
+2. **Update CHANGELOG.md**: Document all changes
+3. **Run tests**: Ensure all functionality works
+4. **Create Git tag**: Tag the release commit
+5. **Update documentation**: Reflect new features/changes
+
+#### Required Files
+Every skill project MUST include:
+- `version.py` - Version management module
+- `update.sh` - Automated update script
+- `CHANGELOG.md` - Change documentation  
+- `UPDATE_GUIDE.md` - User update instructions
+
+---
+
 ## Appendix A: Complete Skill Template
 
 See `ldr/skills/specs/skill_template.yaml` for the base template.
@@ -1870,6 +2296,6 @@ This document is designed to be read and understood by AI systems for automated 
 
 For questions or clarifications, refer to the example implementations or the MCP deployment documentation.
 
-**Last Updated**: 2026-02-11  
-**Document Version**: 2.0.0  
+**Last Updated**: 2026-02-12  
+**Document Version**: 2.1.0  
 **Target Applications**: AI-Powered Skills and Agents
