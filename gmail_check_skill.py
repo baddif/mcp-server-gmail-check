@@ -377,8 +377,12 @@ class GmailCheckSkill(McpCompatibleSkill):
                         # Extract email content
                         content = self._extract_email_content(full_email_message)
                         
+                        # Extract clean email address from sender
+                        clean_sender_email = self._extract_email_address(sender)
+                        
                         matched_email = {
-                            "sender": sender,
+                            "sender": sender,  # Original sender with display name
+                            "sender_email": clean_sender_email,  # Clean email address only
                             "subject": subject,
                             "content": content,
                             "date_received": date_received,
@@ -420,14 +424,24 @@ class GmailCheckSkill(McpCompatibleSkill):
             return False
         
         # Extract email from "Name <email@domain.com>" format
+        email_part = self._extract_email_address(sender)
+        
+        result = email_part.lower() == filter_sender.lower()
+        print(f"        发件人匹配调试: '{email_part}' vs '{filter_sender}' = {result}")
+        return result
+    
+    def _extract_email_address(self, sender: str) -> str:
+        """Extract clean email address from sender field"""
+        if not sender:
+            return ""
+        
+        # Extract email from "Name <email@domain.com>" format
         if '<' in sender and '>' in sender:
             email_part = sender.split('<')[1].split('>')[0].strip()
         else:
             email_part = sender.strip()
         
-        result = email_part.lower() == filter_sender.lower()
-        print(f"        发件人匹配调试: '{email_part}' vs '{filter_sender}' = {result}")
-        return result
+        return email_part
     
     def _match_subject(self, subject: str, subject_pattern: str) -> bool:
         """Check if subject matches pattern (case-insensitive substring match)"""

@@ -75,6 +75,18 @@ skill.stop_monitoring()
 - **max_emails** (integer): 每次检测的最大邮件数，默认100，范围1-1000
 - **days_back** (integer): 检测几天内的邮件，默认1天，范围1-30天
 
+## 过滤规则说明
+
+### 发件人匹配
+- **完全匹配**: 发件人邮箱必须完全匹配过滤器中指定的邮箱地址
+- **大小写不敏感**: `notifications@github.com` 可以匹配 `Notifications@GitHub.com`
+- **显示名称忽略**: `GitHub <notifications@github.com>` 中只匹配邮箱部分 `notifications@github.com`
+- **不支持部分匹配**: `notifications@github.com` 不会匹配 `github.com` 或 `notifications`
+
+### 主题匹配
+- **部分匹配**: 主题中包含指定关键词即可匹配
+- **大小写不敏感**: `重要通知` 可以匹配 `【重要通知】系统维护`
+
 ## 输出格式
 
 ### 成功响应
@@ -86,7 +98,8 @@ skill.stop_monitoring()
   "data": {
     "matched_emails": [
       {
-        "sender": "sender@example.com",
+        "sender": "Display Name <sender@example.com>",
+        "sender_email": "sender@example.com",
         "subject": "重要通知",
         "content": "邮件正文内容...",
         "date_received": "Mon, 10 Feb 2026 10:00:00 +0000",
@@ -107,6 +120,20 @@ skill.stop_monitoring()
   }
 }
 ```
+
+#### 邮件对象字段说明
+
+每个匹配的邮件包含以下字段：
+
+- **`sender`** (string): 原始发件人信息，可能包含显示名称，如 `"GitHub <notifications@github.com>"`
+- **`sender_email`** (string): 纯净的发件人邮箱地址，如 `"notifications@github.com"`
+- **`subject`** (string): 邮件主题（已解码中文等非ASCII字符）
+- **`content`** (string): 邮件正文内容（纯文本格式）
+- **`date_received`** (string): 邮件接收时间（RFC 2822格式）
+- **`message_id`** (string): 邮件唯一标识符
+- **`matched_sender_filter`** (string): 匹配的发件人过滤器
+- **`matched_subject_filters`** (array): 匹配的主题关键词列表
+- **`email_id`** (string): 内部生成的邮件哈希ID（用于缓存）
 
 ### 错误响应
 
