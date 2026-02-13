@@ -5,6 +5,31 @@ All notable changes to the Gmail Check MCP Server project will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-02-13
+
+### 🔧 Enhanced
+- **Type-Safe Parameter Processing**: Implemented comprehensive type-safe conversion for all numeric parameters
+- **Robust Input Validation**: Added `_safe_int_convert()` helper method to handle string, int, float, and edge case inputs
+- **Parameter Range Enforcement**: Automatic enforcement of min/max limits for all numeric parameters
+- **Error-Tolerant Design**: Graceful handling of invalid input types with fallback to default values
+
+### 🛡️ Security & Stability  
+- **Input Type Safety**: Prevents type errors from malformed parameter inputs (strings, floats, etc.)
+- **Range Boundary Protection**: Automatic clamping of out-of-range values to safe limits
+- **Comprehensive Error Logging**: Detailed warnings for type conversion failures and range violations
+- **Backward Compatibility**: Full compatibility with existing parameter formats
+
+### 📊 Parameters Enhanced
+- `max_emails`: 1-1000 range with type-safe conversion
+- `check_interval`: 1-3600 seconds range with type-safe conversion  
+- `days_back`: 1-30 days range with type-safe conversion
+- `time_range_hours`: 1-720 hours range with type-safe conversion
+
+### 🧪 Testing
+- **Comprehensive Test Suite**: New `test_type_safety.py` script for validating type conversion
+- **Edge Case Coverage**: Tests for infinity, NaN, scientific notation, and malformed inputs
+- **Integration Verification**: Parameter processing tests with real Gmail skill execution
+
 ## [1.2.0] - 2026-02-12
 
 ### 🆕 Added

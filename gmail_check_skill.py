@@ -11,7 +11,7 @@ import json
 import time
 import threading
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import hashlib
 import os
 from pathlib import Path
@@ -40,6 +40,51 @@ class GmailCheckSkill(McpCompatibleSkill):
     - Background monitoring support
     """
     
+    @staticmethod
+    def _safe_int_convert(value: Union[str, int, float, None], default: int, min_val: int = None, max_val: int = None) -> int:
+        """
+        安全地将值转换为整数
+        
+        Args:
+            value: 要转换的值
+            default: 默认值
+            min_val: 最小值限制
+            max_val: 最大值限制
+            
+        Returns:
+            转换后的整数值
+        """
+        if value is None:
+            return default
+            
+        try:
+            # 如果已经是数字类型
+            if isinstance(value, (int, float)):
+                result = int(value)
+            elif isinstance(value, str):
+                # 处理字符串类型
+                value = value.strip()
+                if not value:
+                    return default
+                # 支持带小数点的字符串
+                result = int(float(value))
+            else:
+                return default
+                
+            # 应用范围限制
+            if min_val is not None and result < min_val:
+                print(f"⚠️ 参数值 {result} 小于最小值 {min_val}，使用最小值")
+                return min_val
+            if max_val is not None and result > max_val:
+                print(f"⚠️ 参数值 {result} 大于最大值 {max_val}，使用最大值")
+                return max_val
+                
+            return result
+            
+        except (ValueError, TypeError, OverflowError) as e:
+            print(f"⚠️ 参数转换失败 '{value}' -> int: {e}，使用默认值 {default}")
+            return default
+
     def __init__(self):
         super().__init__()
         self._cache_file = ".gmail_check_cache.json"
@@ -135,15 +180,41 @@ class GmailCheckSkill(McpCompatibleSkill):
         Returns:
             Result dictionary with matched emails and their content
         """
-        # Extract parameters
+        # Extract parameters with type-safe conversion
         username = kwargs.get("username")
         app_password = kwargs.get("app_password")
         email_filters = kwargs.get("email_filters", {})
-        check_interval = kwargs.get("check_interval", 30)
+        
+        # 使用类型安全转换处理数字参数
+        check_interval = self._safe_int_convert(
+            kwargs.get("check_interval"), 
+            default=30, 
+            min_val=1, 
+            max_val=3600  # 最大1小时间隔
+        )
         background_mode = kwargs.get("background_mode", False)
-        max_emails = kwargs.get("max_emails", 100)
-        days_back = kwargs.get("days_back", 1)
-        time_range_hours = kwargs.get("time_range_hours", 24)
+        
+        max_emails = self._safe_int_convert(
+            kwargs.get("max_emails"), 
+            default=100, 
+            min_val=1, 
+            max_val=1000  # 最大1000封邮件
+        )
+        
+        days_back = self._safe_int_convert(
+            kwargs.get("days_back"), 
+            default=1, 
+            min_val=1, 
+            max_val=30  # 最多30天
+        )
+        
+        time_range_hours = self._safe_int_convert(
+            kwargs.get("time_range_hours"), 
+            default=24, 
+            min_val=1, 
+            max_val=720  # 最多30天(30*24小时)
+        )
+        
         use_cache = kwargs.get("use_cache", True)
         
         # Validate required parameters

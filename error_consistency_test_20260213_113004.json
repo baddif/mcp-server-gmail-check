@@ -1,0 +1,164 @@
+{
+  "test_info": {
+    "test_date": "2026-02-13T11:30:04.825398",
+    "version": "1.2.0",
+    "purpose": "验证错误情况下的结构一致性"
+  },
+  "scenarios": {
+    "missing_auth": {
+      "description": "缺少认证参数",
+      "raw_result": {
+        "success": true,
+        "function_name": "gmail_check",
+        "data": {
+          "matched_emails": [],
+          "check_time": "2026-02-13T03:29:59.230138+00:00",
+          "total_matched": 0,
+          "background_mode": false
+        },
+        "statistics": {
+          "emails_checked": 0,
+          "cache_size": 0,
+          "filters_applied": 1,
+          "time_range_hours": 24,
+          "cache_enabled": true,
+          "search_period": "24 hours",
+          "connection_status": "no_filters",
+          "error_info": null
+        }
+      },
+      "structure_analysis": {
+        "has_matched_emails": true,
+        "matched_emails_type": "list",
+        "matched_emails_count": 0,
+        "has_success": true,
+        "has_function_name": true,
+        "has_data": true,
+        "has_statistics": true
+      }
+    },
+    "empty_filters": {
+      "description": "空过滤条件",
+      "raw_result": {
+        "success": true,
+        "function_name": "gmail_check",
+        "data": {
+          "matched_emails": [],
+          "check_time": "2026-02-13T03:29:59.232831+00:00",
+          "total_matched": 0,
+          "background_mode": false
+        },
+        "statistics": {
+          "emails_checked": 0,
+          "cache_size": 0,
+          "filters_applied": 0,
+          "time_range_hours": 24,
+          "cache_enabled": true,
+          "search_period": "24 hours",
+          "connection_status": "no_filters",
+          "error_info": null
+        }
+      },
+      "structure_analysis": {
+        "has_matched_emails": true,
+        "matched_emails_type": "list",
+        "matched_emails_count": 0,
+        "has_success": true,
+        "has_function_name": true,
+        "has_data": true,
+        "has_statistics": true
+      }
+    },
+    "none_filters": {
+      "description": "None过滤条件",
+      "raw_result": {
+        "success": true,
+        "function_name": "gmail_check",
+        "data": {
+          "matched_emails": [],
+          "check_time": "2026-02-13T03:29:59.233187+00:00",
+          "total_matched": 0,
+          "background_mode": false
+        },
+        "statistics": {
+          "emails_checked": 0,
+          "cache_size": 0,
+          "filters_applied": 0,
+          "time_range_hours": 24,
+          "cache_enabled": true,
+          "search_period": "24 hours",
+          "connection_status": "no_filters",
+          "error_info": null
+        }
+      },
+      "structure_analysis": {
+        "has_matched_emails": true,
+        "matched_emails_type": "list",
+        "matched_emails_count": 0,
+        "has_success": true,
+        "has_function_name": true,
+        "has_data": true,
+        "has_statistics": true
+      }
+    },
+    "invalid_auth": {
+      "description": "错误的认证信息",
+      "raw_result": {
+        "success": true,
+        "function_name": "gmail_check",
+        "data": {
+          "matched_emails": [],
+          "check_time": "2026-02-13T03:30:04.823218+00:00",
+          "total_matched": 0,
+          "background_mode": false
+        },
+        "statistics": {
+          "emails_checked": 0,
+          "cache_size": 8,
+          "filters_applied": 1,
+          "time_range_hours": 24,
+          "cache_enabled": true,
+          "search_period": "24 hours"
+        }
+      },
+      "structure_analysis": {
+        "has_matched_emails": true,
+        "matched_emails_type": "list",
+        "matched_emails_count": 0,
+        "has_success": true,
+        "has_function_name": true,
+        "has_data": true,
+        "has_statistics": true
+      }
+    },
+    "background_no_auth": {
+      "description": "背景模式缺少认证",
+      "raw_result": {
+        "success": true,
+        "function_name": "gmail_check",
+        "data": {
+          "background_mode": true,
+          "check_interval": 30,
+          "monitoring_started": "2026-02-13T03:30:04.824107+00:00",
+          "message": "Background monitoring initialized (no emails found or connection failed)",
+          "matched_emails": []
+        },
+        "statistics": {
+          "monitoring_active": false,
+          "check_interval_minutes": 30,
+          "filters_count": 1,
+          "connection_status": "no_filters"
+        }
+      },
+      "structure_analysis": {
+        "has_matched_emails": true,
+        "matched_emails_type": "list",
+        "matched_emails_count": 0,
+        "has_success": true,
+        "has_function_name": true,
+        "has_data": true,
+        "has_statistics": true
+      }
+    }
+  }
+}
