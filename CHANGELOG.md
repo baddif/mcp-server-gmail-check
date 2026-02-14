@@ -5,6 +5,51 @@ All notable changes to the Gmail Check MCP Server project will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-02-14
+
+### 🔧 Enhanced
+- **Non-Daemon Thread Mode**: Changed background monitoring thread from daemon to non-daemon mode
+- **Process Exit Control**: Background monitoring now prevents premature main process termination
+- **Enhanced Stop Mechanism**: Improved `stop_monitoring()` method with better timeout and logging
+- **Graceful Shutdown**: Added `__del__` destructor to ensure threads stop when objects are destroyed
+
+### 🛡️ Reliability Improvements
+- **Data Integrity**: Non-daemon threads ensure cache saves complete before process exit
+- **Monitoring Continuity**: Background monitoring cannot be accidentally terminated by process exit
+- **Explicit Control**: Required manual thread stopping provides better control over monitoring lifecycle
+- **Thread Safety**: Enhanced thread management with proper cleanup mechanisms
+
+### 📊 Thread Management
+- `daemon=False`: Background threads now block main process exit
+- Enhanced logging for thread state changes and operations
+- 10-second timeout for graceful thread termination
+- Automatic cleanup on object destruction
+
+### 🧪 Testing
+- **Comprehensive Thread Tests**: New `test_non_daemon_thread.py` for validating thread behavior
+- **Process Exit Behavior**: Verification that threads properly block premature exit
+- **Manual Stop Mechanism**: Testing of enhanced stop_monitoring() functionality
+
+## [1.2.2] - 2026-02-14
+
+### 🐛 Fixed
+- **Background Monitoring Cache Issue**: Fixed critical issue where cache state was lost between monitoring cycles
+- **Cache State Persistence**: Cache now maintains consistent state throughout the entire monitoring session
+- **Duplicate Email Prevention**: Resolved issue where same emails could be processed multiple times due to cache reloading
+- **Memory State Management**: Cache is now loaded once at monitoring start and maintained throughout the session
+
+### 🔧 Improved
+- **Enhanced Cache Logging**: Added detailed logging for cache state changes during background monitoring
+- **Better Error Handling**: Improved error messages for cache operations in background mode
+- **Monitoring Reliability**: More robust background monitoring with consistent cache behavior
+- **Performance Optimization**: Reduced unnecessary cache file I/O operations during monitoring
+
+### 📊 Technical Details
+- Fixed `processed_emails` being reloaded on each monitoring cycle
+- Cache now persists across all periodic checks within a monitoring session
+- Added comprehensive logging for cache state tracking
+- Improved cache save frequency to ensure state persistence
+
 ## [1.2.1] - 2026-02-13
 
 ### 🔧 Enhanced

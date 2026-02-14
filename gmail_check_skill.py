@@ -92,6 +92,16 @@ class GmailCheckSkill(McpCompatibleSkill):
         self._monitoring_thread = None
         self._stop_monitoring = threading.Event()
     
+    def __del__(self):
+        """确保对象销毁时停止后台线程"""
+        try:
+            if hasattr(self, '_monitoring_thread') and self._monitoring_thread and self._monitoring_thread.is_alive():
+                print("🧹 对象销毁时停止后台监控线程...")
+                self._stop_monitoring.set()
+                self._monitoring_thread.join(timeout=3)
+        except Exception as e:
+            print(f"⚠️ 清理后台线程时出错: {e}")
+    
     @staticmethod
     def get_schema() -> Dict[str, Any]:
         """Return OpenAI Function Calling compatible JSON Schema"""
@@ -610,7 +620,9 @@ class GmailCheckSkill(McpCompatibleSkill):
         """Start background email monitoring"""
         
         def monitoring_loop():
+            # Load cache once at the beginning and maintain state throughout monitoring
             processed_emails = self._load_cache() if use_cache else {}
+            print(f"🔄 后台监控启动，缓存状态: {'启用' if use_cache else '禁用'}，已处理邮件: {len(processed_emails)}")
             
             # Perform first check immediately
             try:
@@ -620,10 +632,12 @@ class GmailCheckSkill(McpCompatibleSkill):
                     time_range_hours, use_cache
                 )
                 
-                if matched_emails:
-                    # Save updated cache
+                # Always save cache after checking (regardless of matches found)
+                if use_cache:
                     self._save_cache(processed_emails)
-                    
+                    print(f"💾 初次检查后缓存更新，已处理邮件: {len(processed_emails)}")
+                
+                if matched_emails:
                     # Update context with new results
                     result_data = {
                         "matched_emails": matched_emails,
@@ -633,9 +647,12 @@ class GmailCheckSkill(McpCompatibleSkill):
                     }
                     ctx.set("skill:gmail_check:latest_results", result_data)
                     ctx.set("skill:gmail_check:last_check", datetime.now(timezone.utc).isoformat())
+                    print(f"📧 初次检查找到 {len(matched_emails)} 封匹配邮件")
+                else:
+                    print("📭 初次检查未发现匹配邮件")
                 
             except Exception as e:
-                print(f"Background monitoring error (initial check): {str(e)}")
+                print(f"❌ 后台监控错误 (初次检查): {str(e)}")
             
             # Continue with periodic checks
             while not self._stop_monitoring.is_set():
@@ -644,16 +661,19 @@ class GmailCheckSkill(McpCompatibleSkill):
                     break  # Exit if stop event is set during wait
                 
                 try:
+                    # Use the same processed_emails dict to maintain cache state
                     matched_emails = self._check_emails(
                         username, app_password, email_filters, 
                         processed_emails, max_emails, days_back,
                         time_range_hours, use_cache
                     )
                     
-                    if matched_emails:
-                        # Save updated cache
+                    # Always save cache after checking (regardless of matches found)
+                    if use_cache:
                         self._save_cache(processed_emails)
-                        
+                        print(f"💾 周期检查后缓存更新，已处理邮件: {len(processed_emails)}")
+                    
+                    if matched_emails:
                         # Update context with new results
                         result_data = {
                             "matched_emails": matched_emails,
@@ -663,19 +683,23 @@ class GmailCheckSkill(McpCompatibleSkill):
                         }
                         ctx.set("skill:gmail_check:latest_results", result_data)
                         ctx.set("skill:gmail_check:last_check", datetime.now(timezone.utc).isoformat())
+                        print(f"📧 周期检查找到 {len(matched_emails)} 封新邮件")
+                    else:
+                        print("📭 周期检查未发现新邮件")
                     
                 except Exception as e:
-                    print(f"Background monitoring error: {str(e)}")
+                    print(f"❌ 后台监控错误 (周期检查): {str(e)}")
         
         # Stop existing monitoring if running
         if self._monitoring_thread and self._monitoring_thread.is_alive():
             self._stop_monitoring.set()
             self._monitoring_thread.join()
         
-        # Start new monitoring thread
+        # Start new monitoring thread (non-daemon to prevent premature termination)
         self._stop_monitoring.clear()
-        self._monitoring_thread = threading.Thread(target=monitoring_loop, daemon=True)
+        self._monitoring_thread = threading.Thread(target=monitoring_loop, daemon=False)
         self._monitoring_thread.start()
+        print(f"🧵 后台监控线程已启动 (non-daemon模式，将阻止主进程意外退出)")
         
         return {
             "success": True,
@@ -694,12 +718,21 @@ class GmailCheckSkill(McpCompatibleSkill):
         }
     
     def stop_monitoring(self) -> bool:
-        """Stop background monitoring"""
+        """Stop background monitoring safely"""
         if self._monitoring_thread and self._monitoring_thread.is_alive():
+            print("🛑 正在停止后台监控线程...")
             self._stop_monitoring.set()
-            self._monitoring_thread.join(timeout=5)
-            return True
-        return False
+            self._monitoring_thread.join(timeout=10)  # 增加超时时间确保优雅退出
+            
+            if self._monitoring_thread.is_alive():
+                print("⚠️ 后台监控线程未能在10秒内停止，可能存在阻塞")
+                return False
+            else:
+                print("✅ 后台监控线程已成功停止")
+                return True
+        else:
+            print("ℹ️ 后台监控线程未运行")
+            return False
     
     def get_mcp_resources(self) -> List[McpResource]:
         """Define MCP Resources"""
