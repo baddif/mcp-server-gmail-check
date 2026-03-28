@@ -2110,6 +2110,126 @@ Every skill project MUST include:
 ---
 
 ## Appendix A: Complete Skill Template
+## Skill.md generation standard
+
+Purpose: define a single, machine-readable and human-friendly standard for generating a `Skill.md` file and companion MCP configuration files from an OpenAI schema and internal project metadata. The `Skill.md` produced by AI should be directly consumable by humans and tools, follow the naming and schema rules in this document, and include example snippets for both OpenAI Function Calling and MCP mapping.
+
+Required placement and usage
+- Add `Skill.md` to the root of the skill's directory (same level as `{skill_name}_skill.py` and `mcp_server.py`).
+- AI generators MUST read `SKILL_GENERATION_RULES.md` before producing `Skill.md` or any MCP config to ensure compliance.
+
+Top-level structure (required headings)
+1. Title and short description (one-line).
+2. Table of Contents (auto-generated OK).
+3. Purpose and compatibility (list OpenAI/MCP versions supported).
+4. Quick start (how to run the skill and MCP server: `python mcp_server.py --test`).
+5. OpenAI Function Schema (full JSON block as returned by `get_openai_schema()`).
+6. MCP mapping (tool description converted from OpenAI schema and example `mcp_config.json`).
+7. API / execute() contract (inputs, outputs, error shapes). Include examples for success and error cases.
+8. Resource URIs and Prompts (if any) with examples of `read_resource()` return payloads.
+9. Security and privacy notes (what to hide / mask in logs and outputs).
+10. Tests and validation (schema validation steps and example unit tests).
+11. Version and changelog pointers (how to bump `version.py` and record changes).
+
+Machine-oriented generation rules (what the AI must include)
+- Include the exact OpenAI function schema under a fenced JSON block with key `openai_schema`.
+- Include a mapped MCP tool JSON under key `mcp_tool` showing `name`, `description`, `inputSchema` (copy of `parameters`), and `annotations` (e.g., cached=false).
+- Provide `mcp_config.json` example with fields: `command`, `args`, `env` and `skill_path` placeholders.
+- Provide example `read_resource` responses for each declared resource URI. Each example must include `uri`, `mimeType`, and `text` or `contents` as in MCP doc.
+- Provide at least two unit test skeletons: one verifying `get_openai_schema()` shape, one invoking `execute()` with a canonical happy-path payload and asserting `success==True` and expected fields.
+
+Schema-to-MCP mapping rules
+- The `openai_schema.function.parameters` object maps directly to `mcp_tool.inputSchema`.
+- For any property where `type` contains `null` (e.g., `"type": ["string","null"]`), mark the MCP input property as optional (omit from `required`).
+- Translate JSON Schema `enum`, `minimum`, `maximum`, `pattern`, `format` into the MCP `inputSchema` unchanged.
+- Set `mcp_tool.inputSchema.additionalProperties` to `false` by default unless the original schema explicitly allows additional properties.
+
+Skill.md templates (required code blocks)
+- OpenAI schema block: include the exact JSON returned by the skill class method.
+- MCP tool block: JSON showing the mapped tool.
+- mcp_config.json example:
+
+```json
+{
+    "command": "python3",
+    "args": ["mcp_server.py"],
+    "env": {"PYTHONPATH": "./"},
+    "skill_path": "./"
+}
+```
+
+Example Success/Error return shapes (canonical)
+
+Success example:
+
+```json
+{
+    "success": true,
+    "function_name": "{skill_name}",
+    "data": { /* structured payload */ },
+    "statistics": {"found": 3}
+}
+```
+
+Error example (consistent shape):
+
+```json
+{
+    "success": false,
+    "function_name": "{skill_name}",
+    "error": {"message": "Authentication failed", "type": "execution_error"},
+    "data": []
+}
+```
+
+Guidance for generators (best practices)
+- Always include `examples` inside OpenAI schema properties when possible.
+- Keep the number of top-level tools exposed at start to < 20 (use deferred loading otherwise).
+- For any parameter that may be numeric but sometimes passed as string, include a note in `Skill.md` to perform safe conversion (e.g., `int()` with default and clamping). This repository recommends a helper `_safe_int_convert()` in `gmail_check_skill.py`.
+- Recommend registering SIGINT/SIGTERM handlers in `mcp_server.py` to call `stop_monitoring()` or to gracefully shutdown the MCP server.
+
+Minimal Skill.md generator checklist (the AI must satisfy these when writing Skill.md)
+- [ ] Contains `openai_schema` JSON block
+- [ ] Contains mapped `mcp_tool` JSON block
+- [ ] Contains `mcp_config.json` example
+- [ ] Contains success/error examples with consistent shapes
+- [ ] Contains at least two unit test skeletons
+- [ ] Contains security/privacy notes
+- [ ] Contains deployment/run instructions (local + recommended systemd/docker example)
+
+Example Skill.md snippet (minimal):
+
+````markdown
+# {Skill Name}
+
+Short description...
+
+## OpenAI schema
+
+```json
+{ "openai_schema": { /* exact JSON here */ } }
+```
+
+## MCP tool mapping
+
+```json
+{ "mcp_tool": { /* mapped tool */ } }
+```
+
+## Run
+
+1. python mcp_server.py --test
+````
+
+Notes on validation and automation
+- Provide one-liner commands to validate schema with `jsonschema` when possible:
+
+```bash
+python -c "import json,sys; from jsonschema import validate, Draft7Validator; s=json.load(open('schema.json')); v=Draft7Validator(s); print(list(v.iter_errors({})))"
+```
+
+If you want, I will now generate a `Skill.md` template file for the current repository's `gmail_check_skill` (using its existing schema and MCP mapping) and add a sample `mcp_config.json` and two test skeletons. Confirm and I'll create the files.
+
 
 See `ldr/skills/specs/skill_template.yaml` for the base template.
 
