@@ -160,8 +160,10 @@ python3 mcp_server.py --test
 
 ### 测试Gmail功能
 ```bash
-python3 test_gmail_skill.py
+python3 examples/test_gmail_skill_manual.py
 ```
+
+> Note: As of v1.2.4 integration tests that contact live Gmail services have been moved to `tests/integration/` and are gated by the `RUN_LIVE_TESTS` environment variable. See `README.md` for details on running integration tests and securely providing credentials.
 
 ### 调试模式
 服务器会输出详细的调试信息，包括:

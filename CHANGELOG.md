@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.3] - 2026-02-14
 
+## [1.2.4] - 2026-03-31
+
+### 🆕 Release notes
+- **Version bump to 1.2.4**: routine patch release containing documentation and testing improvements.
+
+### 📚 Documentation & Testing
+- Added clearer instructions for running integration (live) tests and MCP integration guidance in `README.md` and `MCP_DEPLOYMENT.md`.
+- Integration tests moved under `tests/integration/` and gated via the `RUN_LIVE_TESTS` environment variable to avoid accidental live API calls.
+- Fixed pytest warning by replacing a return-based test with assert-based validation and moved the manual interactive script to `examples/` so it won't be auto-collected by pytest.
+
+### 🛠️ Misc
+- Bumped package version to `1.2.4` and updated release date.
+
+
 ### 🔧 Enhanced
 - **Non-Daemon Thread Mode**: Changed background monitoring thread from daemon to non-daemon mode
 - **Process Exit Control**: Background monitoring now prevents premature main process termination
