@@ -51,6 +51,8 @@ gmail_config_test.json
 # Test / output artifacts (do not commit recorded output)
 gmail_check_output*.json
 gmail_check_output_*.json
+*_test_*.json
+*_output*.json
 
 # 日志文件
 *.log
