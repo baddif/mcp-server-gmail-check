@@ -138,6 +138,48 @@ How to run integration (live) tests
 
 If you only want to run a single integration test file, pass its path instead of the whole folder.
 
+MCP integration tests and secure credentials
+-------------------------------------------
+
+If you want to test the MCP server integration (starting the MCP server and calling it with a client), follow these steps.
+
+1. Provide credentials securely
+
+  - Locally: create `gmail_config_local.json` in the repository root. This file is gitignored. Do not commit it.
+  - In CI: store your credentials as secret variables (for example, GMAIL_USERNAME and GMAIL_APP_PASSWORD), and write them to `gmail_config_local.json` at job runtime before running tests.
+
+  Example `gmail_config_local.json` (do not commit):
+
+  ```json
+  {
+    "username": "your_email@gmail.com",
+    "app_password": "your_16_digit_app_password",
+    "imap_server": "imap.gmail.com",
+    "imap_port": 993
+  }
+  ```
+
+2. Start the MCP server (in a separate shell):
+
+  ```bash
+  source .venv/bin/activate
+  python -m mcp_server
+  ```
+
+3. Run MCP integration tests (gated):
+
+  ```bash
+  export RUN_LIVE_TESTS=1
+  .venv/bin/python -m pytest tests/integration -q
+  ```
+
+Security notes:
+
+- Never commit `gmail_config_local.json` or other secrets. Use CI secrets and write them to files at runtime.
+- Limit the scope of credentials used for CI by using a dedicated Gmail account with minimal permissions.
+- Rotate app passwords periodically.
+
+
 
 ### Backup & Recovery
 
