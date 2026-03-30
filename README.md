@@ -118,6 +118,27 @@ python3 mcp_server.py --test
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
+## Running tests
+
+The project uses pytest for tests. Most tests are unit tests and safe to run locally. Integration tests that contact live Gmail services are located under `tests/integration/` and are gated behind the `RUN_LIVE_TESTS` environment variable to avoid accidental runs.
+
+How to run integration (live) tests
+----------------------------------
+
+1. Create and activate the project's virtual environment (recommended):
+
+  source .venv/bin/activate
+
+2. Create a local credentials file at the repository root named `gmail_config_local.json` (this file is gitignored). Provide your Gmail username and an app password (recommended). Do not commit this file.
+
+3. Run the integration tests by enabling the gate:
+
+  export RUN_LIVE_TESTS=1
+  .venv/bin/python -m pytest tests/integration -q
+
+If you only want to run a single integration test file, pass its path instead of the whole folder.
+
+
 ### Backup & Recovery
 
 The update script automatically backs up:
