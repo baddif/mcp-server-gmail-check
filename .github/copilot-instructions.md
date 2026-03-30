@@ -71,6 +71,14 @@ If you prefer different tools (for example `prettier` for non-Python files, or `
 
 ---
 
+## Example checklist for changes in this repository
+- [ ] Modify or add code in repository root skill files (e.g., `gmail_check_skill.py` or `ldr_compat.py`)
+- [ ] Update `mcp_config.json` / `*_config.json` in the repository root if inputs/outputs changed
+- [ ] Add or update tests under the top-level `tests/` (or update existing repo-root tests)
+- [ ] Run tests locally using the repository venv (`.venv/bin/python -m pytest -q`) and ensure green
+- [ ] Add an entry to `MODIFICATION_SUMMARY.md` (repo root) describing the intent and risk
+
+
 If you want stricter rules (for example: only allow automated changes in a `sandbox/` branch), say so and I can update this file accordingly.
 
 ## Using the project's virtual environment (recommended)
