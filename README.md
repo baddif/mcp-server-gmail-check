@@ -180,6 +180,27 @@ Security notes:
 - Rotate app passwords periodically.
 
 
+Creating a local MCP inspector configuration
+-------------------------------------------
+
+If you use an MCP inspector or local MCP client for development, you can create a local inspector config from the provided example:
+
+1. Copy the example file to create your local config:
+
+  cp mcp-inspector-config.example.json mcp-inspector-config.json
+
+2. Edit `mcp-inspector-config.json` and adjust the `args` or `env.PYTHONPATH` if necessary for your local setup. Prefer relative paths (e.g. `./mcp_server.py` and `.`) so the config remains portable.
+
+3. The repository keeps `mcp-inspector-config.example.json` under version control; your local `mcp-inspector-config.json` is ignored by git to avoid committing machine-specific paths.
+
+If you need a quick one-liner to create a local copy and open it in your default editor (macOS):
+
+```bash
+cp mcp-inspector-config.example.json mcp-inspector-config.json && open mcp-inspector-config.json
+```
+
+
+
 
 ### Backup & Recovery
 
