@@ -48,6 +48,7 @@ gmail_config_test.json
 *_local.json
 *_private.json
 mcp-inspector-config.json
+claude_desktop_config.json
 
 # Test / output artifacts (do not commit recorded output)
 gmail_check_output*.json
