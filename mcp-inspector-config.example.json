@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "gmail-check": {
+      "command": "python3",
+      "args": ["./mcp_server.py"],
+      "env": {
+        "PYTHONPATH": "."
+      }
+    }
+  }
+}
