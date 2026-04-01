@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 # Current version information
-__version__ = "1.2.4"
+__version__ = "1.2.5"
 __release_date__ = "2026-03-31"
 __compatibility_version__ = "2024-11-05"  # MCP protocol version
 
@@ -30,7 +30,8 @@ VERSION_INFO = {
         "Smart Email Filtering",
         "Intelligent Caching",
         "MCP Protocol Support",
-        "Gated integration tests and docs",
+    "Gated integration tests and docs",
+    "Example inspector and Claude Desktop configs"
         "Background Monitoring",
         "Time Range Control",
         "Cache Management"

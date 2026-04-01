@@ -46,6 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.2] - 2026-02-14
 
+## [1.2.5] - 2026-03-31
+
+### 🆕 Release notes
+- **Version bump to 1.2.5**: added example configs and ignored local machine-specific config files to improve repo portability.
+
+### 📚 Documentation & Config
+- Added `mcp-inspector-config.example.json` and `claude_desktop_config.example.json` to the repo; local machine config files are now ignored via `.gitignore`.
+- Updated README with instructions to create local copies from the examples and adjust paths to be relative for portability.
+
+
 ### 🐛 Fixed
 - **Background Monitoring Cache Issue**: Fixed critical issue where cache state was lost between monitoring cycles
 - **Cache State Persistence**: Cache now maintains consistent state throughout the entire monitoring session
